@@ -1,7 +1,8 @@
-﻿import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,6 +10,9 @@ import {
   Text,
   TextInput,
   View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -34,10 +38,53 @@ const FIRE_ICON = '\u{1F525}';
 const GEAR_ICON = '\u2699';
 const MIC_ICON = '\u{1F3A4}';
 const KEYBOARD_ICON = '\u2328';
+const HEART_ICON = '\u2665';
+const PROTEIN_ICON = '\u{1F357}';
+const FAT_ICON = '\u{1F4A7}';
 
 type EntryRowProps = {
   entry: JournalEntry;
   onCaloriesPress: (entryId: string) => void;
+};
+
+type GoalRowProps = {
+  icon: string;
+  iconStyle?: StyleProp<TextStyle>;
+  fillStyle?: StyleProp<ViewStyle>;
+  label: string;
+  value: number;
+  target: number;
+};
+
+const clampProgress = (value: number, target: number): number => {
+  if (target <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(1, value / target));
+};
+
+const GoalRow = ({ icon, iconStyle, fillStyle, label, value, target }: GoalRowProps): React.JSX.Element => {
+  const progress = clampProgress(value, target);
+
+  return (
+    <View style={styles.goalRow}>
+      <View style={styles.goalRowTop}>
+        <View style={styles.goalLabelWrap}>
+          <Text style={[styles.goalRowIcon, iconStyle]}>{icon}</Text>
+          <Text style={styles.goalLabel}>{label}</Text>
+        </View>
+        <Text style={styles.goalValue}>
+          {`${value.toLocaleString()} `}
+          <Text style={styles.goalTarget}>{`/ ${target.toLocaleString()}${label === 'Calories' ? '' : 'g'}`}</Text>
+        </Text>
+      </View>
+
+      <View style={styles.goalTrack}>
+        <View style={[styles.goalFill, fillStyle, { width: `${Math.round(progress * 100)}%` }]} />
+      </View>
+    </View>
+  );
 };
 
 const EntryRow = ({ entry, onCaloriesPress }: EntryRowProps): React.JSX.Element => {
@@ -74,14 +121,33 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
   const [draftText, setDraftText] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
+  const [isGoalsExpanded, setIsGoalsExpanded] = useState<boolean>(true);
   const inputRef = useRef<TextInput>(null);
 
   const { entries, totals, isLoading, error } = useDayEntries(user?.uid ?? null, dateKey);
   const { streakCount } = useDaysSummary(user?.uid ?? null);
 
+  useEffect(() => {
+    const showListener = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const hideListener = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
+
   const date = useMemo(() => new Date(`${dateKey}T12:00:00`), [dateKey]);
-  const targetCalories = userDoc?.settings.macroTargets.calories ?? 2200;
-  const caloriesLeft = Math.max(0, targetCalories - totals.calories);
+  const macroTargets =
+    userDoc?.settings.macroTargets ?? {
+      calories: 2200,
+      carbsG: 220,
+      proteinG: 140,
+      fatG: 70,
+    };
+
+  const caloriesLeft = Math.max(0, macroTargets.calories - totals.calories);
 
   const onDateChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowPicker(false);
@@ -183,7 +249,10 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
           data={entries}
           keyExtractor={item => item.id}
           renderItem={({ item }) => <EntryRow entry={item} onCaloriesPress={openEntryDetails} />}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            isKeyboardVisible ? styles.listContentKeyboard : styles.listContentGoals,
+          ]}
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View style={styles.inlineComposerWrap}>
@@ -191,6 +260,8 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
                 <TextInput
                   ref={inputRef}
                   value={draftText}
+                  onFocus={() => setIsKeyboardVisible(true)}
+                  onBlur={() => setIsKeyboardVisible(false)}
                   onChangeText={value => {
                     setDraftText(value);
                     if (submitError) {
@@ -204,7 +275,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
                   autoCorrect
                   testID="today-inline-input"
                 />
-                <Text style={styles.inlineDots}>•••</Text>
+                <Text style={styles.inlineDots}>...</Text>
               </View>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
               {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
@@ -212,37 +283,124 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
             </View>
           }
           ListEmptyComponent={<View style={styles.emptySpacer} testID="today-empty-state" />}
-          ListFooterComponent={<View style={styles.listFooterSpacer} />}
+          ListFooterComponent={
+            <View
+              style={
+                isKeyboardVisible
+                  ? styles.listFooterSpacer
+                  : isGoalsExpanded
+                    ? styles.listFooterGoalsSpacer
+                    : styles.listFooterGoalsCollapsedSpacer
+              }
+            />
+          }
           testID="today-entry-list"
         />
 
-        <View style={styles.bottomDock} testID="today-bottom-dock">
-          <View style={styles.leftCaloriesPill}>
-            <Text style={styles.leftCaloriesText}>{`${FIRE_ICON} ${caloriesLeft.toLocaleString()} left`}</Text>
+        {isKeyboardVisible ? (
+          <View style={styles.bottomDock} testID="today-bottom-dock">
+            <View style={styles.leftCaloriesPill}>
+              <Text style={styles.leftCaloriesText}>{`${FIRE_ICON} ${caloriesLeft.toLocaleString()} left`}</Text>
+            </View>
+
+            <Pressable
+              style={[styles.circleAction, styles.circleActionBlue]}
+              onPress={() => inputRef.current?.focus()}
+              testID="today-mic-button">
+              <Text style={styles.circleActionBlueLabel}>{MIC_ICON}</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.circleAction, isSubmitting && styles.circleActionDisabled]}
+              onPress={() => submitInlineEntry().catch(() => undefined)}
+              disabled={isSubmitting}
+              testID="today-quick-add-button">
+              <Text style={styles.circleActionPlus}>{isSubmitting ? '...' : '+'}</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.circleAction}
+              onPress={() => navigation.navigate('AddEntryModal', { dateKey })}
+              testID="today-keyboard-button">
+              <Text style={styles.circleActionKeyboard}>{KEYBOARD_ICON}</Text>
+            </Pressable>
           </View>
+        ) : (
+          <View style={styles.goalsDock} testID="today-goals-dock">
+            {isGoalsExpanded ? (
+              <View style={styles.goalsCard}>
+                <Text style={styles.goalsTitle}>Goals</Text>
 
-          <Pressable
-            style={[styles.circleAction, styles.circleActionBlue]}
-            onPress={() => inputRef.current?.focus()}
-            testID="today-mic-button">
-            <Text style={styles.circleActionBlueLabel}>{MIC_ICON}</Text>
-          </Pressable>
+                <GoalRow
+                  icon={FIRE_ICON}
+                  iconStyle={styles.goalIconCalories}
+                  fillStyle={styles.goalFillCalories}
+                  label="Calories"
+                  value={totals.calories}
+                  target={macroTargets.calories}
+                />
 
-          <Pressable
-            style={[styles.circleAction, isSubmitting && styles.circleActionDisabled]}
-            onPress={() => submitInlineEntry().catch(() => undefined)}
-            disabled={isSubmitting}
-            testID="today-quick-add-button">
-            <Text style={styles.circleActionPlus}>{isSubmitting ? '…' : '+'}</Text>
-          </Pressable>
+                <GoalRow
+                  icon={HEART_ICON}
+                  iconStyle={styles.goalIconCarbs}
+                  fillStyle={styles.goalFillCarbs}
+                  label="Carbs"
+                  value={totals.macros.carbsG}
+                  target={macroTargets.carbsG}
+                />
 
-          <Pressable
-            style={styles.circleAction}
-            onPress={() => navigation.navigate('AddEntryModal', { dateKey })}
-            testID="today-keyboard-button">
-            <Text style={styles.circleActionKeyboard}>{KEYBOARD_ICON}</Text>
-          </Pressable>
-        </View>
+                <GoalRow
+                  icon={PROTEIN_ICON}
+                  iconStyle={styles.goalIconProtein}
+                  fillStyle={styles.goalFillProtein}
+                  label="Protein"
+                  value={totals.macros.proteinG}
+                  target={macroTargets.proteinG}
+                />
+
+                <GoalRow
+                  icon={FAT_ICON}
+                  iconStyle={styles.goalIconFat}
+                  fillStyle={styles.goalFillFat}
+                  label="Fat"
+                  value={totals.macros.fatG}
+                  target={macroTargets.fatG}
+                />
+              </View>
+            ) : null}
+
+            <Pressable
+              style={styles.floatingSummaryPill}
+              onPress={() => setIsGoalsExpanded(prev => !prev)}
+              testID="today-goals-toggle-pill">
+              <View style={styles.floatingMetric}>
+                <Text style={styles.floatingIconCalories}>{FIRE_ICON}</Text>
+                <Text style={styles.floatingValue}>{totals.calories.toLocaleString()}</Text>
+              </View>
+
+              <Text style={styles.floatingDot}>.</Text>
+
+              <View style={styles.floatingMetric}>
+                <Text style={styles.floatingMacroLabelCarbs}>C</Text>
+                <Text style={styles.floatingValue}>{totals.macros.carbsG}</Text>
+              </View>
+
+              <Text style={styles.floatingDot}>.</Text>
+
+              <View style={styles.floatingMetric}>
+                <Text style={styles.floatingMacroLabelProtein}>P</Text>
+                <Text style={styles.floatingValue}>{totals.macros.proteinG}</Text>
+              </View>
+
+              <Text style={styles.floatingDot}>.</Text>
+
+              <View style={styles.floatingMetric}>
+                <Text style={styles.floatingMacroLabelFat}>F</Text>
+                <Text style={styles.floatingValue}>{totals.macros.fatG}</Text>
+              </View>
+            </Pressable>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
@@ -299,7 +457,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
+    minHeight: '100%',
+  },
+  listContentKeyboard: {
     paddingBottom: 164,
+  },
+  listContentGoals: {
+    paddingBottom: 430,
   },
   inlineComposerWrap: {
     minHeight: 120,
@@ -377,26 +541,36 @@ const styles = StyleSheet.create({
   listFooterSpacer: {
     height: 60,
   },
+  listFooterGoalsSpacer: {
+    height: 360,
+  },
+  listFooterGoalsCollapsedSpacer: {
+    height: 108,
+  },
   bottomDock: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.lg,
+    left: 0,
+    right: 0,
+    bottom: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
   },
   leftCaloriesPill: {
-    flex: 1,
-    height: 52,
+    width: 162,
+    maxWidth: '45%',
+    height: 44,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: '#F1EEE7',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
     ...elevation.card,
   },
   leftCaloriesText: {
@@ -405,9 +579,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   circleAction: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: '#F1EEE7',
@@ -420,20 +594,157 @@ const styles = StyleSheet.create({
   },
   circleActionBlueLabel: {
     color: '#2D9CDB',
-    fontSize: 18,
+    fontSize: 16,
   },
   circleActionPlus: {
     color: '#F5A623',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '500',
     marginTop: -1,
   },
   circleActionKeyboard: {
     color: colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
   },
   circleActionDisabled: {
     opacity: 0.6,
   },
+  goalsDock: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    gap: spacing.md,
+  },
+  goalsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: '#E7E2D9',
+    ...elevation.card,
+  },
+  goalsTitle: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    letterSpacing: -0.3,
+  },
+  goalRow: {
+    marginBottom: spacing.sm,
+  },
+  goalRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  goalLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  goalRowIcon: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  goalIconCalories: {
+    color: '#F97316',
+  },
+  goalIconCarbs: {
+    color: '#FF3B30',
+  },
+  goalIconProtein: {
+    color: '#F5B81A',
+  },
+  goalIconFat: {
+    color: '#A855F7',
+  },
+  goalLabel: {
+    color: '#4B5563',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  goalValue: {
+    color: '#202124',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  goalTarget: {
+    color: '#787D88',
+    fontWeight: '400',
+    fontSize: 16,
+  },
+  goalTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: radius.round,
+    backgroundColor: '#DBDBDF',
+    overflow: 'hidden',
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: radius.round,
+  },
+  goalFillCalories: {
+    backgroundColor: '#F5B81A',
+  },
+  goalFillCarbs: {
+    backgroundColor: '#FF3B30',
+  },
+  goalFillProtein: {
+    backgroundColor: '#FF3B30',
+  },
+  goalFillFat: {
+    backgroundColor: '#35C759',
+  },
+  floatingSummaryPill: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: '#E6E2DA',
+    paddingHorizontal: spacing.md,
+    height: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    ...elevation.card,
+  },
+  floatingMetric: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  floatingIconCalories: {
+    color: '#F97316',
+    fontSize: 14,
+  },
+  floatingMacroLabelCarbs: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  floatingMacroLabelProtein: {
+    color: '#F5B81A',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  floatingMacroLabelFat: {
+    color: '#A855F7',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  floatingValue: {
+    color: '#202124',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  floatingDot: {
+    color: '#C9CDD4',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });
-

@@ -48,6 +48,7 @@ const fallbackPlans: PaywallPlanOption[] = [
   { id: 'monthly', title: 'Monthly', priceLabel: '$9.99 / month' },
   { id: 'yearly', title: 'Yearly', priceLabel: '$59.99 / year' },
 ];
+const INIT_TIMEOUT_MS = 8000;
 
 type FirebaseErrorLike = {
   code?: string;
@@ -88,6 +89,21 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
   const [paywallPlans, setPaywallPlans] = useState<PaywallPlanOption[]>(fallbackPlans);
   const unsubscribeUserDocRef = useRef<(() => void) | null>(null);
   const revenueCatListenerRef = useRef<((info: CustomerInfo) => void) | null>(null);
+  const initTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearInitTimeout = useCallback(() => {
+    if (!initTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(initTimeoutRef.current);
+    initTimeoutRef.current = null;
+  }, []);
+
+  const finishInitializing = useCallback(() => {
+    clearInitTimeout();
+    setIsInitializing(false);
+  }, [clearInitTimeout]);
 
   const syncRevenueCatSubscription = useCallback(async (uid: string) => {
     if (!isRevenueCatConfigured()) {
@@ -127,6 +143,12 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
     );
 
     const unsubscribeAuth = auth().onAuthStateChanged(async currentUser => {
+      clearInitTimeout();
+      initTimeoutRef.current = setTimeout(() => {
+        setAuthError(prev => prev ?? 'Startup timeout. Check emulator internet/Firebase settings.');
+        setIsInitializing(false);
+      }, INIT_TIMEOUT_MS);
+
       unsubscribeUserDocRef.current?.();
       unsubscribeUserDocRef.current = null;
 
@@ -140,18 +162,34 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       if (!currentUser) {
         setUserDoc(null);
         setPaywallPlans(fallbackPlans);
-        setIsInitializing(false);
+        finishInitializing();
         return;
       }
 
-      try {
-        await ensureUserDocument({
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName,
-        });
+      unsubscribeUserDocRef.current = subscribeToUserDocument(
+        currentUser.uid,
+        doc => {
+          setUserDoc(doc);
+          finishInitializing();
+        },
+        () => {
+          setAuthError('Could not load user settings.');
+          finishInitializing();
+        },
+      );
 
-        if (isRevenueCatConfigured()) {
+      const prepareCurrentUser = async () => {
+        try {
+          await ensureUserDocument({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+          });
+
+          if (!isRevenueCatConfigured()) {
+            return;
+          }
+
           const listener = (info: CustomerInfo) => {
             const state = mapCustomerInfoToSubscriptionState(info);
             updateUserSubscription(currentUser.uid, {
@@ -165,22 +203,16 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
           await configureRevenueCatForUser(currentUser.uid, listener);
           revenueCatListenerRef.current = listener;
           await syncRevenueCatSubscription(currentUser.uid);
+        } catch {
+          setAuthError('Could not prepare user profile.');
+          finishInitializing();
         }
-      } catch {
-        setAuthError('Could not prepare user profile.');
-      }
+      };
 
-      unsubscribeUserDocRef.current = subscribeToUserDocument(
-        currentUser.uid,
-        doc => {
-          setUserDoc(doc);
-          setIsInitializing(false);
-        },
-        () => {
-          setAuthError('Could not load user settings.');
-          setIsInitializing(false);
-        },
-      );
+      prepareCurrentUser().catch(() => {
+        setAuthError('Could not prepare user profile.');
+        finishInitializing();
+      });
     });
 
     return () => {
@@ -191,8 +223,9 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
         removeRevenueCatListener(revenueCatListenerRef.current);
         revenueCatListenerRef.current = null;
       }
+      clearInitTimeout();
     };
-  }, [syncRevenueCatSubscription]);
+  }, [clearInitTimeout, finishInitializing, syncRevenueCatSubscription]);
 
   useEffect(() => {
     refreshPaywallPlans().catch(() => undefined);

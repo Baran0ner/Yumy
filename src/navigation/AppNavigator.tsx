@@ -5,6 +5,7 @@ import {
 } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import type {
   AppTabsParamList,
@@ -57,6 +58,20 @@ const commonStackScreenOptions = {
   headerStyle: { backgroundColor: colors.background },
   headerTintColor: colors.textPrimary,
 };
+
+type TabIconProps = {
+  icon: string;
+  color: string;
+};
+
+const TabIcon = ({ icon, color }: TabIconProps): React.JSX.Element => {
+  return <Text style={[styles.tabIcon, { color }]}>{icon}</Text>;
+};
+
+const renderTodayTabIcon = ({ color }: { color: string }) => <TabIcon icon="◷" color={color} />;
+const renderHistoryTabIcon = ({ color }: { color: string }) => <TabIcon icon="↺" color={color} />;
+const renderGoalsTabIcon = ({ color }: { color: string }) => <TabIcon icon="◎" color={color} />;
+const renderSettingsTabIcon = ({ color }: { color: string }) => <TabIcon icon="⚙" color={color} />;
 
 const AuthStackNavigator = () => (
   <AuthStack.Navigator
@@ -164,22 +179,38 @@ const AppTabsNavigator = () => (
     <Tab.Screen
       name="TodayTab"
       component={TodayStackNavigator}
-      options={{ tabBarLabel: 'Today', tabBarButtonTestID: 'tab-today' }}
+      options={{
+        tabBarLabel: 'Today',
+        tabBarButtonTestID: 'tab-today',
+        tabBarIcon: renderTodayTabIcon,
+      }}
     />
     <Tab.Screen
       name="HistoryTab"
       component={HistoryStackNavigator}
-      options={{ tabBarLabel: 'History', tabBarButtonTestID: 'tab-history' }}
+      options={{
+        tabBarLabel: 'History',
+        tabBarButtonTestID: 'tab-history',
+        tabBarIcon: renderHistoryTabIcon,
+      }}
     />
     <Tab.Screen
       name="GoalsTab"
       component={GoalsStackNavigator}
-      options={{ tabBarLabel: 'Goals', tabBarButtonTestID: 'tab-goals' }}
+      options={{
+        tabBarLabel: 'Goals',
+        tabBarButtonTestID: 'tab-goals',
+        tabBarIcon: renderGoalsTabIcon,
+      }}
     />
     <Tab.Screen
       name="SettingsTab"
       component={SettingsStackNavigator}
-      options={{ tabBarLabel: 'Settings', tabBarButtonTestID: 'tab-settings' }}
+      options={{
+        tabBarLabel: 'Settings',
+        tabBarButtonTestID: 'tab-settings',
+        tabBarIcon: renderSettingsTabIcon,
+      }}
     />
   </Tab.Navigator>
 );
@@ -236,4 +267,11 @@ export const AppNavigator = (): React.JSX.Element => {
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  tabIcon: {
+    fontSize: 24,
+    lineHeight: 24,
+  },
+});
 
