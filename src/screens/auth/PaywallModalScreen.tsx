@@ -1,20 +1,35 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
 import { useAuth } from '../../context/AuthContext';
-import { colors, elevation, radius, spacing, typography } from '../../theme/tokens';
+import { colors, spacing, typography } from '../../theme/tokens';
 import type { RootStackParamList } from '../../navigation/types';
 import type { RevenueCatPlan } from '../../services/revenueCatService';
+import { logKpiEvent } from '../../services/analyticsService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PaywallModal'>;
 
 export const PaywallModalScreen = ({ navigation }: Props): React.JSX.Element => {
-  const { startTrial, restoreSubscription, refreshPaywallPlans, paywallPlans, authError } = useAuth();
+  const { t } = useTranslation();
+  const {
+    user,
+    startTrial,
+    restoreSubscription,
+    refreshPaywallPlans,
+    paywallPlans,
+    authError,
+    forceSignInFromGuest,
+  } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<RevenueCatPlan>('yearly');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingPlans, setIsLoadingPlans] = useState<boolean>(true);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  const isGuest = Boolean(user?.isAnonymous);
 
   useEffect(() => {
     setIsLoadingPlans(true);
@@ -23,13 +38,21 @@ export const PaywallModalScreen = ({ navigation }: Props): React.JSX.Element => 
       .finally(() => setIsLoadingPlans(false));
   }, [refreshPaywallPlans]);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    logKpiEvent(user.uid, 'paywall_viewed', { isGuest }).catch(() => undefined);
+  }, [isGuest, user]);
+
   const selectedPlanDetails = useMemo(
     () => paywallPlans.find(plan => plan.id === selectedPlan),
     [paywallPlans, selectedPlan],
   );
 
   const handleStartTrial = async () => {
-    if (isSubmitting) {
+    if (isSubmitting || isGuest) {
       return;
     }
 
@@ -37,17 +60,26 @@ export const PaywallModalScreen = ({ navigation }: Props): React.JSX.Element => 
     setIsSubmitting(true);
     try {
       await startTrial(selectedPlan);
+      if (user) {
+        logKpiEvent(user.uid, 'purchase_success', { plan: selectedPlan }).catch(() => undefined);
+      }
       navigation.goBack();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Purchase failed.';
       setPurchaseError(message);
+      if (user) {
+        logKpiEvent(user.uid, 'purchase_failed', {
+          plan: selectedPlan,
+          message,
+        }).catch(() => undefined);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleRestore = async () => {
-    if (isSubmitting) {
+    if (isSubmitting || isGuest) {
       return;
     }
 
@@ -55,10 +87,16 @@ export const PaywallModalScreen = ({ navigation }: Props): React.JSX.Element => 
     setIsSubmitting(true);
     try {
       await restoreSubscription();
+      if (user) {
+        logKpiEvent(user.uid, 'restore_success').catch(() => undefined);
+      }
       navigation.goBack();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Restore failed.';
       setPurchaseError(message);
+      if (user) {
+        logKpiEvent(user.uid, 'restore_failed', { message }).catch(() => undefined);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -67,41 +105,62 @@ export const PaywallModalScreen = ({ navigation }: Props): React.JSX.Element => 
   return (
     <ScreenContainer testID="screen-paywall" style={styles.container}>
       <View>
-        <Text style={styles.title}>3-day free trial</Text>
-        <Text style={styles.subtitle}>Unlock full food journal insights and AI estimations.</Text>
+        <Text style={styles.title}>{isGuest ? t('paywall.guestTitle') : t('paywall.title')}</Text>
+        <Text style={styles.subtitle}>{isGuest ? t('paywall.guestSubtitle') : t('paywall.subtitle')}</Text>
       </View>
 
-      <View style={styles.planWrap}>
-        {paywallPlans.map(plan => (
-          <Pressable
-            key={plan.id}
-            onPress={() => setSelectedPlan(plan.id)}
-            style={[styles.planCard, selectedPlan === plan.id && styles.planCardSelected]}
-            testID={`paywall-plan-${plan.id}`}>
-            <Text style={styles.planTitle}>{plan.title}</Text>
-            <Text style={styles.planPrice}>{plan.priceLabel}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {!isGuest ? (
+        <View style={styles.planWrap}>
+          {paywallPlans.map(plan => (
+            <AppCard
+              key={plan.id}
+              onPress={() => setSelectedPlan(plan.id)}
+              style={[styles.planCard, selectedPlan === plan.id && styles.planCardSelected]}
+              testID={`paywall-plan-${plan.id}`}>
+              <Text style={styles.planTitle}>{plan.title}</Text>
+              <Text style={styles.planPrice}>{plan.priceLabel}</Text>
+            </AppCard>
+          ))}
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         {isLoadingPlans ? <ActivityIndicator /> : null}
-        <Text style={styles.selectedLabel}>{`Selected: ${selectedPlanDetails?.title ?? 'Plan'}`}</Text>
 
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => handleStartTrial().catch(() => undefined)}
-          disabled={isSubmitting || isLoadingPlans}
-          testID="paywall-start-trial-button">
-          <Text style={styles.primaryButtonLabel}>{isSubmitting ? 'Starting...' : 'Start trial'}</Text>
-        </Pressable>
+        {!isGuest ? (
+          <Text style={styles.selectedLabel}>{`${t('paywall.selected')}: ${selectedPlanDetails?.title ?? 'Plan'}`}</Text>
+        ) : null}
 
-        <Pressable
-          onPress={() => handleRestore().catch(() => undefined)}
-          disabled={isSubmitting || isLoadingPlans}
-          testID="paywall-restore-button">
-          <Text style={styles.restoreText}>Restore purchases</Text>
-        </Pressable>
+        {isGuest ? (
+          <AppButton
+            onPress={() => {
+              if (user) {
+                logKpiEvent(user.uid, 'guest_signin_redirect').catch(() => undefined);
+              }
+              forceSignInFromGuest().catch(() => undefined);
+            }}
+            disabled={isSubmitting}
+            testID="paywall-signin-button">
+            {t('paywall.signInToContinue')}
+          </AppButton>
+        ) : (
+          <>
+            <AppButton
+              onPress={() => handleStartTrial().catch(() => undefined)}
+              disabled={isSubmitting || isLoadingPlans}
+              testID="paywall-start-trial-button">
+              {isSubmitting ? t('paywall.starting') : t('paywall.startTrial')}
+            </AppButton>
+
+            <AppButton
+              variant="text"
+              onPress={() => handleRestore().catch(() => undefined)}
+              disabled={isSubmitting || isLoadingPlans}
+              testID="paywall-restore-button">
+              {t('paywall.restore')}
+            </AppButton>
+          </>
+        )}
 
         {purchaseError || authError ? (
           <Text style={styles.errorText}>{purchaseError ?? authError}</Text>
@@ -127,12 +186,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   planCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
-    ...elevation.card,
   },
   planCardSelected: {
     borderColor: colors.textPrimary,
@@ -155,23 +209,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
-  },
-  primaryButton: {
-    backgroundColor: colors.textPrimary,
-    borderRadius: radius.pill,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  restoreText: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '600',
   },
   errorText: {
     color: colors.error,

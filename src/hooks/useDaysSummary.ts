@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { shiftDateKey, toDateKey } from '../utils/date';
 import { subscribeDays } from '../services/journalService';
 
@@ -10,6 +10,7 @@ type DaySummary = {
   fatG: number;
   streakEligible: boolean;
   updatedAt: string;
+  readyCount: number;
 };
 
 export const useDaysSummary = (uid: string | null) => {
@@ -59,4 +60,3 @@ export const useDaysSummary = (uid: string | null) => {
     error,
   };
 };
-

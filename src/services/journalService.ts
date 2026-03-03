@@ -1,4 +1,4 @@
-﻿import {
+import {
   dayDocRef,
   entriesCollectionRef,
   entryDocRef,
@@ -21,6 +21,19 @@ type CreateEntryInput = {
   mealText: string;
   source: EntrySource;
   photoUrl?: string;
+  barcodeValue?: string;
+  scanProvider?: 'openfoodfacts' | 'manual';
+};
+
+type CreateReadyEntryInput = {
+  mealText: string;
+  source: EntrySource;
+  calories: number;
+  macros: MacroTotals;
+  model: string;
+  reasoningSummary: string;
+  barcodeValue?: string;
+  scanProvider?: 'openfoodfacts' | 'manual';
 };
 
 const emptyMacros: MacroTotals = {
@@ -92,8 +105,58 @@ export const createProcessingEntry = async (
     attachments: {
       photoUrl: input.photoUrl,
       thumbnailUrl: input.photoUrl,
+      barcodeValue: input.barcodeValue,
+      scanProvider: input.scanProvider,
     },
   });
+  return ref.id;
+};
+
+export const createReadyEntry = async (
+  uid: string,
+  dateKey: string,
+  input: CreateReadyEntryInput,
+): Promise<string> => {
+  const ref = entriesCollectionRef(uid, dateKey).doc();
+
+  await ref.set({
+    mealText: input.mealText,
+    createdAt: nowIso(),
+    source: input.source,
+    status: 'ready',
+    nutrition: {
+      calories: input.calories,
+      macros: input.macros,
+    },
+    ai: {
+      model: input.model,
+      confidence: 0.9,
+      sourcesCount: 1,
+      reasoningSummary: input.reasoningSummary,
+      items: [
+        {
+          name: input.mealText,
+          calories: input.calories,
+          macros: {
+            protein_g: input.macros.proteinG,
+            carbs_g: input.macros.carbsG,
+            fat_g: input.macros.fatG,
+          },
+        },
+      ],
+      sources: [
+        {
+          title: 'OpenFoodFacts',
+          type: 'database',
+        },
+      ],
+    },
+    attachments: {
+      barcodeValue: input.barcodeValue,
+      scanProvider: input.scanProvider,
+    },
+  });
+
   return ref.id;
 };
 
@@ -266,6 +329,7 @@ export const writeDayTotals = async (
         fatG: totals.fatG,
       },
       streakEligible: totals.readyCount > 0,
+      readyCount: totals.readyCount,
       updatedAt: nowIso(),
     },
     { merge: true },
@@ -283,6 +347,7 @@ export const subscribeDays = (
       fatG: number;
       streakEligible: boolean;
       updatedAt: string;
+      readyCount: number;
     }>,
   ) => void,
   onError: (error: unknown) => void,
@@ -290,7 +355,7 @@ export const subscribeDays = (
   return userDocRef(uid)
     .collection('days')
     .orderBy('updatedAt', 'desc')
-    .limit(30)
+    .limit(90)
     .onSnapshot(
       snapshot => {
         onNext(
@@ -300,6 +365,7 @@ export const subscribeDays = (
               totalMacros?: { proteinG?: number; carbsG?: number; fatG?: number };
               streakEligible?: boolean;
               updatedAt?: string;
+              readyCount?: number;
             }) ?? { totalCalories: 0, totalMacros: emptyMacros };
 
             return {
@@ -310,6 +376,7 @@ export const subscribeDays = (
               fatG: Number(data.totalMacros?.fatG ?? 0),
               streakEligible: Boolean(data.streakEligible),
               updatedAt: String(data.updatedAt ?? ''),
+              readyCount: Number(data.readyCount ?? 0),
             };
           }),
         );
@@ -417,4 +484,3 @@ export const ensureDateKey = (candidate?: string): string => {
   }
   return toDateKey(new Date());
 };
-

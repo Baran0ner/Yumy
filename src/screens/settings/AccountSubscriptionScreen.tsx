@@ -1,19 +1,23 @@
-﻿import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { deleteCurrentAccount } from '../../services/accountService';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 export const AccountSubscriptionScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc, restoreSubscription, manageSubscription, signOut } = useAuth();
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const handleDeleteAccount = () => {
-    Alert.alert('Delete account', 'This will remove your account data from Firestore and storage.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('account.deleteTitle'), t('account.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: isDeleting ? 'Deleting...' : 'Delete',
+        text: isDeleting ? t('account.deleting') : t('account.delete'),
         style: 'destructive',
         onPress: () => {
           setIsDeleting(true);
@@ -27,43 +31,40 @@ export const AccountSubscriptionScreen = (): React.JSX.Element => {
 
   return (
     <ScreenContainer testID="screen-account-subscription" style={styles.container}>
-      <Text style={styles.title}>Account & Subscription</Text>
+      <Text style={styles.title}>{t('account.title')}</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Name</Text>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
+        <Text style={styles.label}>{t('account.name')}</Text>
         <Text style={styles.value}>{userDoc?.displayName || 'N/A'}</Text>
 
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('account.email')}</Text>
         <Text style={styles.value}>{user?.email ?? 'N/A'}</Text>
 
-        <Text style={styles.label}>Subscription</Text>
+        <Text style={styles.label}>{t('account.subscription')}</Text>
         <Text style={styles.value}>{userDoc?.subscription.status ?? 'inactive'}</Text>
-      </View>
+      </AppCard>
 
-      <Pressable
-        style={styles.secondaryButton}
+      <AppButton
+        variant="outline"
         onPress={() => restoreSubscription().catch(() => undefined)}
         testID="account-restore-button">
-        <Text style={styles.secondaryLabel}>Restore purchases</Text>
-      </Pressable>
+        {t('paywall.restore')}
+      </AppButton>
 
-      <Pressable
-        style={styles.secondaryButton}
+      <AppButton
+        variant="outline"
         onPress={() => manageSubscription().catch(() => undefined)}
         testID="account-manage-button">
-        <Text style={styles.secondaryLabel}>Manage subscription</Text>
-      </Pressable>
+        {t('account.manageSubscription')}
+      </AppButton>
 
-      <Pressable style={styles.warningButton} onPress={handleDeleteAccount} testID="account-delete-button">
-        <Text style={styles.warningLabel}>{isDeleting ? 'Deleting...' : 'Delete account'}</Text>
-      </Pressable>
+      <AppButton variant="danger" onPress={handleDeleteAccount} testID="account-delete-button">
+        {isDeleting ? t('account.deleting') : t('account.deleteAccount')}
+      </AppButton>
 
-      <Pressable
-        style={styles.signoutButton}
-        onPress={() => signOut().catch(() => undefined)}
-        testID="account-signout-button">
-        <Text style={styles.signoutLabel}>Sign out</Text>
-      </Pressable>
+      <AppButton onPress={() => signOut().catch(() => undefined)} testID="account-signout-button">
+        {t('account.signOut')}
+      </AppButton>
     </ScreenContainer>
   );
 };
@@ -80,11 +81,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  cardContent: {
     gap: spacing.xs,
   },
   label: {
@@ -97,40 +96,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     marginBottom: spacing.xs,
-  },
-  secondaryButton: {
-    height: 44,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  warningButton: {
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: '#FFEDE8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  warningLabel: {
-    color: colors.error,
-    fontWeight: '700',
-  },
-  signoutButton: {
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signoutLabel: {
-    color: colors.surface,
-    fontWeight: '700',
   },
 });

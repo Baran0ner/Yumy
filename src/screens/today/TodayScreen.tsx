@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,13 +8,15 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import Voice from '@react-native-voice/voice';
+import * as Animatable from 'react-native-animatable';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import type { TodayStackParamList } from '../../navigation/types';
@@ -27,12 +29,16 @@ import {
   markEntryAsError,
 } from '../../services/journalService';
 import { analyzeMealText } from '../../services/functionsService';
+import { logKpiEvent } from '../../services/analyticsService';
 import { formatDatePill, toDateKey } from '../../utils/date';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
+import { AppInput } from '../../components/common/AppInput';
 import { colors, elevation, radius, spacing, typography } from '../../theme/tokens';
-import type { JournalEntry } from '../../types/firestore';
+import type { EntrySource, JournalEntry } from '../../types/firestore';
 
 type Props = NativeStackScreenProps<TodayStackParamList, 'Today'>;
+
+type VoiceState = 'idle' | 'listening' | 'transcribing' | 'submitting' | 'error';
 
 const FIRE_ICON = '\u{1F525}';
 const GEAR_ICON = '\u2699';
@@ -41,10 +47,14 @@ const KEYBOARD_ICON = '\u2328';
 const HEART_ICON = '\u2665';
 const PROTEIN_ICON = '\u{1F357}';
 const FAT_ICON = '\u{1F4A7}';
+const BARCODE_ICON = '#';
 
 type EntryRowProps = {
   entry: JournalEntry;
   onCaloriesPress: (entryId: string) => void;
+  thinkingLabel: string;
+  errorLabel: string;
+  sourcesLabel: string;
 };
 
 type GoalRowProps = {
@@ -54,6 +64,7 @@ type GoalRowProps = {
   label: string;
   value: number;
   target: number;
+  isCalories?: boolean;
 };
 
 const clampProgress = (value: number, target: number): number => {
@@ -64,7 +75,15 @@ const clampProgress = (value: number, target: number): number => {
   return Math.max(0, Math.min(1, value / target));
 };
 
-const GoalRow = ({ icon, iconStyle, fillStyle, label, value, target }: GoalRowProps): React.JSX.Element => {
+const GoalRow = ({
+  icon,
+  iconStyle,
+  fillStyle,
+  label,
+  value,
+  target,
+  isCalories,
+}: GoalRowProps): React.JSX.Element => {
   const progress = clampProgress(value, target);
 
   return (
@@ -76,7 +95,7 @@ const GoalRow = ({ icon, iconStyle, fillStyle, label, value, target }: GoalRowPr
         </View>
         <Text style={styles.goalValue}>
           {`${value.toLocaleString()} `}
-          <Text style={styles.goalTarget}>{`/ ${target.toLocaleString()}${label === 'Calories' ? '' : 'g'}`}</Text>
+          <Text style={styles.goalTarget}>{`/ ${target.toLocaleString()}${isCalories ? '' : 'g'}`}</Text>
         </Text>
       </View>
 
@@ -87,12 +106,18 @@ const GoalRow = ({ icon, iconStyle, fillStyle, label, value, target }: GoalRowPr
   );
 };
 
-const EntryRow = ({ entry, onCaloriesPress }: EntryRowProps): React.JSX.Element => {
+const EntryRow = ({
+  entry,
+  onCaloriesPress,
+  thinkingLabel,
+  errorLabel,
+  sourcesLabel,
+}: EntryRowProps): React.JSX.Element => {
   const caloriesLabel =
     entry.status === 'processing'
-      ? 'Thinking...'
+      ? thinkingLabel
       : entry.status === 'error'
-        ? 'Error'
+        ? errorLabel
         : `${entry.nutrition.calories} kcal`;
 
   return (
@@ -107,7 +132,7 @@ const EntryRow = ({ entry, onCaloriesPress }: EntryRowProps): React.JSX.Element 
         testID={`entry-calories-hit-${entry.id}`}>
         <Text style={styles.entryCalories}>{caloriesLabel}</Text>
         {entry.ai.sourcesCount > 0 ? (
-          <Text style={styles.entrySources}>{`${entry.ai.sourcesCount} sources`}</Text>
+          <Text style={styles.entrySources}>{`${entry.ai.sourcesCount} ${sourcesLabel}`}</Text>
         ) : null}
       </Pressable>
     </View>
@@ -115,7 +140,8 @@ const EntryRow = ({ entry, onCaloriesPress }: EntryRowProps): React.JSX.Element 
 };
 
 export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => {
-  const { user, userDoc } = useAuth();
+  const { t } = useTranslation();
+  const { user, userDoc, canLogMeals, startGuestTrialIfNeeded } = useAuth();
   const [dateKey, setDateKey] = useState<string>(ensureDateKey(route.params?.dateKey));
   const [showPicker, setShowPicker] = useState<boolean>(false);
   const [draftText, setDraftText] = useState<string>('');
@@ -123,7 +149,9 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
   const [isGoalsExpanded, setIsGoalsExpanded] = useState<boolean>(true);
-  const inputRef = useRef<TextInput>(null);
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const inputRef = useRef<any>(null);
+  const voiceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { entries, totals, isLoading, error } = useDayEntries(user?.uid ?? null, dateKey);
   const { streakCount } = useDaysSummary(user?.uid ?? null);
@@ -137,6 +165,55 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
       hideListener.remove();
     };
   }, []);
+
+  useEffect(() => {
+    Voice.onSpeechStart = () => {
+      setVoiceState('listening');
+    };
+
+    Voice.onSpeechEnd = () => {
+      setVoiceState(prev => (prev === 'submitting' ? prev : 'transcribing'));
+    };
+
+    Voice.onSpeechError = () => {
+      setVoiceState('error');
+      setSubmitError(t('today.voiceError'));
+    };
+
+    Voice.onSpeechResults = event => {
+      const best = event.value?.[0]?.trim();
+
+      if (!best) {
+        setVoiceState('error');
+        setSubmitError(t('today.voiceError'));
+        return;
+      }
+
+      setDraftText(best);
+      setVoiceState('submitting');
+      submitEntry(best, 'voice').catch(() => undefined);
+    };
+
+    return () => {
+      if (voiceTimeoutRef.current) {
+        clearTimeout(voiceTimeoutRef.current);
+        voiceTimeoutRef.current = null;
+      }
+
+      try {
+        Voice.destroy().catch(() => undefined);
+      } catch {
+        // noop
+      }
+
+      try {
+        Voice.removeAllListeners();
+      } catch {
+        // noop
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, canLogMeals, user, userDoc, dateKey]);
 
   const date = useMemo(() => new Date(`${dateKey}T12:00:00`), [dateKey]);
   const macroTargets =
@@ -163,16 +240,24 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
     });
   };
 
-  const submitInlineEntry = async () => {
-    const value = draftText.trim();
+  const submitEntry = async (textValue: string, source: EntrySource = 'text') => {
+    const value = textValue.trim();
 
     if (!user || !userDoc || isSubmitting) {
+      setVoiceState('idle');
+      return;
+    }
+
+    if (!canLogMeals) {
+      setSubmitError(t('today.quickAddBlocked'));
+      setVoiceState('error');
       return;
     }
 
     if (value.length < 3) {
-      setSubmitError('Please type at least 3 characters.');
+      setSubmitError(t('today.typeThreeChars'));
       inputRef.current?.focus();
+      setVoiceState('error');
       return;
     }
 
@@ -181,7 +266,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
 
     const entryId = await createProcessingEntry(user.uid, dateKey, {
       mealText: value,
-      source: 'text',
+      source,
     });
 
     setDraftText('');
@@ -198,21 +283,75 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
       });
 
       await applyAnalysisResultToEntry(user.uid, dateKey, entryId, analysis);
+      await startGuestTrialIfNeeded();
+      if (source === 'voice') {
+        logKpiEvent(user.uid, 'voice_log_submitted', {
+          dateKey,
+          calories: analysis.total.calories,
+        }).catch(() => undefined);
+      }
+      setVoiceState('idle');
     } catch (analysisError) {
       const reason =
         analysisError instanceof Error ? analysisError.message : 'Could not estimate nutrition.';
       await markEntryAsError(user.uid, dateKey, entryId, reason);
+      setVoiceState('error');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const submitInlineEntry = async () => {
+    await submitEntry(draftText, 'text');
+  };
+
+  const startVoiceLogging = async () => {
+    if (isSubmitting || !canLogMeals) {
+      setSubmitError(t('today.quickAddBlocked'));
+      return;
+    }
+
+    try {
+      const isAvailable = await Voice.isAvailable().catch(() => false);
+      if (!isAvailable) {
+        setVoiceState('error');
+        setSubmitError(t('today.voiceUnavailable'));
+        return;
+      }
+
+      if (voiceTimeoutRef.current) {
+        clearTimeout(voiceTimeoutRef.current);
+      }
+
+      setSubmitError(null);
+      setVoiceState('listening');
+      const locale = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith('tr')
+        ? 'tr-TR'
+        : 'en-US';
+      await Voice.start(locale);
+
+      voiceTimeoutRef.current = setTimeout(() => {
+        Voice.stop().catch(() => undefined);
+      }, 20000);
+    } catch {
+      setVoiceState('error');
+      setSubmitError(t('today.voiceError'));
+    }
+  };
+
+  const voiceButtonLabel =
+    voiceState === 'listening'
+      ? '...'
+      : voiceState === 'transcribing' || voiceState === 'submitting'
+        ? '...'
+        : MIC_ICON;
 
   return (
     <ScreenContainer testID="screen-today" style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardLayer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
+        <Animatable.View animation="fadeInDown" duration={320} useNativeDriver style={styles.header}>
           <View style={styles.mascotWrap}>
             <Text style={styles.mascotText}>Amy</Text>
           </View>
@@ -222,7 +361,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
             onPress={() => setShowPicker(true)}
             testID="today-date-pill">
             <Text style={styles.headerPillLabel}>
-              {dateKey === toDateKey(new Date()) ? 'Today' : formatDatePill(dateKey)}
+              {dateKey === toDateKey(new Date()) ? t('common.today') : formatDatePill(dateKey)}
             </Text>
           </Pressable>
 
@@ -233,7 +372,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
             <Text style={styles.headerPillLabel}>{`${FIRE_ICON} ${streakCount}`}</Text>
             <Text style={styles.headerIcon}>{GEAR_ICON}</Text>
           </Pressable>
-        </View>
+        </Animatable.View>
 
         {showPicker ? (
           <DateTimePicker
@@ -248,7 +387,15 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
         <FlatList
           data={entries}
           keyExtractor={item => item.id}
-          renderItem={({ item }) => <EntryRow entry={item} onCaloriesPress={openEntryDetails} />}
+          renderItem={({ item }) => (
+            <EntryRow
+              entry={item}
+              onCaloriesPress={openEntryDetails}
+              thinkingLabel={t('today.thinking')}
+              errorLabel={t('today.error')}
+              sourcesLabel={t('today.sources')}
+            />
+          )}
           contentContainerStyle={[
             styles.listContent,
             isKeyboardVisible ? styles.listContentKeyboard : styles.listContentGoals,
@@ -257,7 +404,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
           ListHeaderComponent={
             <View style={styles.inlineComposerWrap}>
               <View style={styles.inlineComposerRow}>
-                <TextInput
+                <AppInput
                   ref={inputRef}
                   value={draftText}
                   onFocus={() => setIsKeyboardVisible(true)}
@@ -268,9 +415,9 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
                       setSubmitError(null);
                     }
                   }}
-                  placeholder="Start by typing what you ate."
-                  placeholderTextColor="#8A8A8A"
+                  placeholder={t('today.inputPlaceholder')}
                   style={styles.inlineComposerInput}
+                  contentStyle={styles.inlineComposerContent}
                   multiline
                   autoCorrect
                   testID="today-inline-input"
@@ -298,16 +445,16 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
         />
 
         {isKeyboardVisible ? (
-          <View style={styles.bottomDock} testID="today-bottom-dock">
+          <Animatable.View animation="fadeInUp" duration={280} useNativeDriver style={styles.bottomDock} testID="today-bottom-dock">
             <View style={styles.leftCaloriesPill}>
-              <Text style={styles.leftCaloriesText}>{`${FIRE_ICON} ${caloriesLeft.toLocaleString()} left`}</Text>
+              <Text style={styles.leftCaloriesText}>{`${FIRE_ICON} ${caloriesLeft.toLocaleString()} ${t('today.left')}`}</Text>
             </View>
 
             <Pressable
               style={[styles.circleAction, styles.circleActionBlue]}
-              onPress={() => inputRef.current?.focus()}
+              onPress={() => startVoiceLogging().catch(() => undefined)}
               testID="today-mic-button">
-              <Text style={styles.circleActionBlueLabel}>{MIC_ICON}</Text>
+              <Text style={styles.circleActionBlueLabel}>{voiceButtonLabel}</Text>
             </Pressable>
 
             <Pressable
@@ -320,31 +467,39 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
 
             <Pressable
               style={styles.circleAction}
+              onPress={() => navigation.navigate('BarcodeScan', { dateKey })}
+              testID="today-barcode-button">
+              <Text style={styles.circleActionKeyboard}>{BARCODE_ICON}</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.circleAction}
               onPress={() => navigation.navigate('AddEntryModal', { dateKey })}
               testID="today-keyboard-button">
               <Text style={styles.circleActionKeyboard}>{KEYBOARD_ICON}</Text>
             </Pressable>
-          </View>
+          </Animatable.View>
         ) : (
-          <View style={styles.goalsDock} testID="today-goals-dock">
+          <Animatable.View animation="fadeInUp" duration={320} useNativeDriver style={styles.goalsDock} testID="today-goals-dock">
             {isGoalsExpanded ? (
               <View style={styles.goalsCard}>
-                <Text style={styles.goalsTitle}>Goals</Text>
+                <Text style={styles.goalsTitle}>{t('today.goals')}</Text>
 
                 <GoalRow
                   icon={FIRE_ICON}
                   iconStyle={styles.goalIconCalories}
                   fillStyle={styles.goalFillCalories}
-                  label="Calories"
+                  label={t('today.calories')}
                   value={totals.calories}
                   target={macroTargets.calories}
+                  isCalories
                 />
 
                 <GoalRow
                   icon={HEART_ICON}
                   iconStyle={styles.goalIconCarbs}
                   fillStyle={styles.goalFillCarbs}
-                  label="Carbs"
+                  label={t('today.carbs')}
                   value={totals.macros.carbsG}
                   target={macroTargets.carbsG}
                 />
@@ -353,7 +508,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
                   icon={PROTEIN_ICON}
                   iconStyle={styles.goalIconProtein}
                   fillStyle={styles.goalFillProtein}
-                  label="Protein"
+                  label={t('today.protein')}
                   value={totals.macros.proteinG}
                   target={macroTargets.proteinG}
                 />
@@ -362,7 +517,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
                   icon={FAT_ICON}
                   iconStyle={styles.goalIconFat}
                   fillStyle={styles.goalFillFat}
-                  label="Fat"
+                  label={t('today.fat')}
                   value={totals.macros.fatG}
                   target={macroTargets.fatG}
                 />
@@ -399,7 +554,7 @@ export const TodayScreen = ({ navigation, route }: Props): React.JSX.Element => 
                 <Text style={styles.floatingValue}>{totals.macros.fatG}</Text>
               </View>
             </Pressable>
-          </View>
+          </Animatable.View>
         )}
       </KeyboardAvoidingView>
     </ScreenContainer>
@@ -478,11 +633,13 @@ const styles = StyleSheet.create({
   },
   inlineComposerInput: {
     flex: 1,
+    minHeight: 80,
+    maxHeight: 180,
+  },
+  inlineComposerContent: {
     ...typography.body,
     fontSize: 21,
     lineHeight: 32,
-    minHeight: 80,
-    maxHeight: 180,
     paddingVertical: 0,
   },
   inlineDots: {
@@ -560,7 +717,7 @@ const styles = StyleSheet.create({
   },
   leftCaloriesPill: {
     width: 162,
-    maxWidth: '45%',
+    maxWidth: '40%',
     height: 44,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
@@ -575,7 +732,7 @@ const styles = StyleSheet.create({
   },
   leftCaloriesText: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   circleAction: {
@@ -605,6 +762,7 @@ const styles = StyleSheet.create({
   circleActionKeyboard: {
     color: colors.textPrimary,
     fontSize: 16,
+    fontWeight: '700',
   },
   circleActionDisabled: {
     opacity: 0.6,
@@ -748,3 +906,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+

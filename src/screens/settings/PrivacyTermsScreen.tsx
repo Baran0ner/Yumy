@@ -1,28 +1,33 @@
-﻿import React from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Linking, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 const links = [
-  { id: 'privacy', label: 'Privacy Policy', url: 'https://example.com/privacy' },
-  { id: 'terms', label: 'Terms of Service', url: 'https://example.com/terms' },
-  { id: 'support', label: 'Support FAQ', url: 'https://example.com/support' },
-];
+  { id: 'privacy', key: 'privacyPolicy', url: 'https://example.com/privacy' },
+  { id: 'terms', key: 'termsOfService', url: 'https://example.com/terms' },
+  { id: 'support', key: 'supportFaq', url: 'https://example.com/support' },
+] as const;
 
 export const PrivacyTermsScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <ScreenContainer testID="screen-privacy-terms" style={styles.container}>
-      <Text style={styles.title}>Privacy & Terms</Text>
+      <Text style={styles.title}>{t('privacy.title')}</Text>
       <View style={styles.list}>
         {links.map(item => (
-          <Pressable
+          <AppCard
             key={item.id}
-            style={styles.row}
             onPress={() => Linking.openURL(item.url)}
+            style={styles.row}
+            contentStyle={styles.rowContent}
             testID={`privacy-link-${item.id}`}>
-            <Text style={styles.rowLabel}>{item.label}</Text>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>
+            <Text style={styles.rowLabel}>{t(`privacy.${item.key}`)}</Text>
+            <Text style={styles.chevron}>�</Text>
+          </AppCard>
         ))}
       </View>
     </ScreenContainer>
@@ -44,11 +49,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   row: {
+    borderRadius: 16,
+  },
+  rowContent: {
     height: 52,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -64,4 +68,3 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
 });
-

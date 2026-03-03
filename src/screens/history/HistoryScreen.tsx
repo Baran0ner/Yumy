@@ -1,39 +1,45 @@
-ï»¿import React from 'react';
-import { FlatList, Pressable, StyleSheet, Text } from 'react-native';
+import React from 'react';
+import { FlatList, StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import * as Animatable from 'react-native-animatable';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useDaysSummary } from '../../hooks/useDaysSummary';
 import type { HistoryStackParamList } from '../../navigation/types';
 import { formatLongDate } from '../../utils/date';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<HistoryStackParamList, 'History'>;
 
 export const HistoryScreen = ({ navigation }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { days } = useDaysSummary(user?.uid ?? null);
 
   return (
     <ScreenContainer testID="screen-history" style={styles.container}>
-      <Text style={styles.title}>History</Text>
+      <Text style={styles.title}>{t('history.title')}</Text>
 
       <FlatList
         data={days}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() => navigation.navigate('DayDetail', { dateKey: item.id })}
-            testID={`history-day-${item.id}`}>
-            <Text style={styles.date}>{formatLongDate(item.id)}</Text>
-            <Text style={styles.calories}>{`?? ${item.totalCalories} kcal`}</Text>
-            <Text style={styles.macros}>{`C ${item.carbsG} Â· P ${item.proteinG} Â· F ${item.fatG}`}</Text>
-          </Pressable>
+          <Animatable.View animation="fadeInUp" duration={320} useNativeDriver>
+            <AppCard
+              onPress={() => navigation.navigate('DayDetail', { dateKey: item.id })}
+              style={styles.card}
+              testID={`history-day-${item.id}`}>
+              <Text style={styles.date}>{formatLongDate(item.id)}</Text>
+              <Text style={styles.calories}>{`\u{1F525} ${item.totalCalories} kcal`}</Text>
+              <Text style={styles.macros}>{`C ${item.carbsG} · P ${item.proteinG} · F ${item.fatG}`}</Text>
+            </AppCard>
+          </Animatable.View>
         )}
         ListEmptyComponent={
           <Text style={styles.empty} testID="history-empty-state">
-            No days logged yet.
+            {t('history.empty')}
           </Text>
         }
         contentContainerStyle={styles.listContent}
@@ -56,11 +62,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
     marginBottom: spacing.sm,
   },
   date: {
@@ -85,5 +86,3 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
 });
-
-

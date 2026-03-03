@@ -1,4 +1,4 @@
-﻿import firestore from '@react-native-firebase/firestore';
+import firestore from '@react-native-firebase/firestore';
 import { defaultSettings, defaultSubscription } from './defaults';
 import { mapUserDoc } from './firebase/firestoreMapper';
 import { userDocRef } from './firebase/firestoreRefs';
@@ -108,4 +108,3 @@ export const updateUserSubscription = async (
     { merge: true },
   );
 };
-

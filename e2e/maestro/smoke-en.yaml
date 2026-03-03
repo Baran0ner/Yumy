@@ -1,0 +1,27 @@
+﻿appId: com.subsetapp.yummy
+name: Yumy Smoke Core
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    id: "screen-welcome"
+- tapOn:
+    id: "welcome-continue-button"
+- tapOn:
+    id: "signin-skip-button"
+- assertVisible:
+    id: "screen-today"
+- tapOn:
+    id: "today-barcode-button"
+- assertVisible:
+    id: "screen-barcode-scan"
+- tapOn:
+    id: "barcode-cancel-button"
+- tapOn:
+    id: "tab-goals"
+- assertVisible:
+    id: "screen-goals"
+- tapOn:
+    id: "goals-streaks-badges-button"
+- assertVisible:
+    id: "screen-streaks-badges"

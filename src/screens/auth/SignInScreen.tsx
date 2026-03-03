@@ -1,9 +1,11 @@
-﻿import React, { useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { colors, spacing, typography } from '../../theme/tokens';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
@@ -12,6 +14,7 @@ const privacyUrl = 'https://example.com/privacy';
 const termsUrl = 'https://example.com/terms';
 
 export const SignInScreen = (_: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { signInWithGoogle, signInWithApple, continueAsGuest, authError } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -57,50 +60,55 @@ export const SignInScreen = (_: Props): React.JSX.Element => {
   return (
     <ScreenContainer testID="screen-sign-in" style={styles.container}>
       <View style={styles.top}>
-        <Text style={styles.title}>Sign in</Text>
-        <Text style={styles.subtitle}>Continue to sync your food journal across devices.</Text>
+        <Text style={styles.title}>{t('signIn.title')}</Text>
+        <Text style={styles.subtitle}>{t('signIn.subtitle')}</Text>
       </View>
 
       <View style={styles.actions}>
         {Platform.OS === 'ios' ? (
-          <Pressable
-            style={styles.primaryButton}
+          <AppButton
             onPress={() => handleApple().catch(() => undefined)}
             disabled={isSubmitting}
             testID="signin-apple-button">
-            <Text style={styles.primaryButtonLabel}>Continue with Apple</Text>
-          </Pressable>
+            {t('signIn.withApple')}
+          </AppButton>
         ) : null}
 
-        <Pressable
-          style={styles.secondaryButton}
+        <AppButton
+          variant="outline"
           onPress={() => handleGoogle().catch(() => undefined)}
           disabled={isSubmitting}
           testID="signin-google-button">
-          <Text style={styles.secondaryButtonLabel}>Continue with Google</Text>
-        </Pressable>
+          {t('signIn.withGoogle')}
+        </AppButton>
 
-        <Pressable
-          style={styles.tertiaryButton}
+        <AppButton
+          variant="text"
           onPress={() => handleContinueAsGuest().catch(() => undefined)}
           disabled={isSubmitting}
           testID="signin-skip-button">
-          <Text style={styles.tertiaryButtonLabel}>Continue without sign in</Text>
-        </Pressable>
+          {t('signIn.asGuest')}
+        </AppButton>
 
         {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
       </View>
 
-      <Text style={styles.footnote}>
-        By continuing you agree to the Privacy Policy and Terms.
-      </Text>
+      <Text style={styles.footnote}>{t('signIn.agreement')}</Text>
       <View style={styles.linksRow}>
-        <Pressable onPress={() => Linking.openURL(privacyUrl)} testID="signin-privacy-link">
-          <Text style={styles.linkText}>Privacy</Text>
-        </Pressable>
-        <Pressable onPress={() => Linking.openURL(termsUrl)} testID="signin-terms-link">
-          <Text style={styles.linkText}>Terms</Text>
-        </Pressable>
+        <AppButton
+          variant="text"
+          size="sm"
+          onPress={() => Linking.openURL(privacyUrl)}
+          testID="signin-privacy-link">
+          {t('signIn.privacy')}
+        </AppButton>
+        <AppButton
+          variant="text"
+          size="sm"
+          onPress={() => Linking.openURL(termsUrl)}
+          testID="signin-terms-link">
+          {t('signIn.terms')}
+        </AppButton>
       </View>
     </ScreenContainer>
   );
@@ -124,43 +132,6 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.md,
   },
-  primaryButton: {
-    height: 52,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  secondaryButton: {
-    height: 52,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonLabel: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  tertiaryButton: {
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tertiaryButtonLabel: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
   errorText: {
     color: colors.error,
     fontSize: 13,
@@ -174,13 +145,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.lg,
+    gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  linkText: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
 });
-

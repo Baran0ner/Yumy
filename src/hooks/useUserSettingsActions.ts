@@ -1,8 +1,18 @@
-﻿import { useCallback } from 'react';
+import { useCallback } from 'react';
 import { updateMacroTargets, updateReminderWindow, updateUserSettings } from '../services/userService';
-import type { CalorieBias, Units, UserSettings } from '../types/firestore';
+import type { AppLanguage, CalorieBias, Units, UserSettings } from '../types/firestore';
 
 export const useUserSettingsActions = (uid: string | null) => {
+  const setLanguage = useCallback(
+    async (language: AppLanguage) => {
+      if (!uid) {
+        return;
+      }
+      await updateUserSettings(uid, { language });
+    },
+    [uid],
+  );
+
   const setCalorieBias = useCallback(
     async (calorieBias: CalorieBias) => {
       if (!uid) {
@@ -114,6 +124,7 @@ export const useUserSettingsActions = (uid: string | null) => {
   );
 
   return {
+    setLanguage,
     setCalorieBias,
     setThoughtProcessVisible,
     setReminderEnabled,

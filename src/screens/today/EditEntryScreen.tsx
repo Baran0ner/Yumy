@@ -1,5 +1,6 @@
-﻿import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import type { JournalEntry } from '../../types/firestore';
@@ -14,11 +15,14 @@ import {
   subscribeEntry,
   updateEntryMealText,
 } from '../../services/journalService';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { AppInput } from '../../components/common/AppInput';
+import { colors, spacing } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<TodayStackParamList, 'EditEntry'>;
 
 export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [mealText, setMealText] = useState<string>('');
@@ -85,7 +89,7 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
 
           await applyAnalysisResultToEntry(user.uid, route.params.dateKey, route.params.entryId, analysis);
         } catch (error) {
-          const reason = error instanceof Error ? error.message : 'Could not re-estimate nutrition.';
+          const reason = error instanceof Error ? error.message : t('editEntry.reestimateFailed');
           await markEntryAsError(user.uid, route.params.dateKey, route.params.entryId, reason);
         }
       }
@@ -101,10 +105,10 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
       return;
     }
 
-    Alert.alert('Delete entry', 'This entry will be removed from your day.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('editEntry.deleteTitle'), t('editEntry.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('editEntry.delete'),
         style: 'destructive',
         onPress: () => {
           deleteEntry(user.uid, route.params.dateKey, route.params.entryId)
@@ -118,25 +122,26 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
   if (!entry) {
     return (
       <View style={styles.centered} testID="screen-edit-entry">
-        <Text style={styles.placeholder}>Entry not found.</Text>
+        <Text style={styles.placeholder}>{t('editEntry.notFound')}</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="screen-edit-entry">
-      <Text style={styles.title}>Edit entry</Text>
+      <Text style={styles.title}>{t('editEntry.title')}</Text>
 
-      <TextInput
+      <AppInput
         value={mealText}
         onChangeText={setMealText}
         multiline
         style={styles.textInput}
+        contentStyle={styles.textInputContent}
         testID="edit-entry-meal-text-input"
       />
 
       <View style={styles.toggleRow}>
-        <Text style={styles.toggleLabel}>Override calories/macros</Text>
+        <Text style={styles.toggleLabel}>{t('editEntry.override')}</Text>
         <Switch
           value={overrideEnabled}
           onValueChange={setOverrideEnabled}
@@ -147,8 +152,8 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
       {overrideEnabled ? (
         <View style={styles.overrideGrid}>
           <View style={styles.overrideField}>
-            <Text style={styles.overrideLabel}>Calories</Text>
-            <TextInput
+            <Text style={styles.overrideLabel}>{t('today.calories')}</Text>
+            <AppInput
               value={calories}
               onChangeText={setCalories}
               keyboardType="numeric"
@@ -157,8 +162,8 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
             />
           </View>
           <View style={styles.overrideField}>
-            <Text style={styles.overrideLabel}>Carbs</Text>
-            <TextInput
+            <Text style={styles.overrideLabel}>{t('today.carbs')}</Text>
+            <AppInput
               value={carbs}
               onChangeText={setCarbs}
               keyboardType="numeric"
@@ -167,8 +172,8 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
             />
           </View>
           <View style={styles.overrideField}>
-            <Text style={styles.overrideLabel}>Protein</Text>
-            <TextInput
+            <Text style={styles.overrideLabel}>{t('today.protein')}</Text>
+            <AppInput
               value={protein}
               onChangeText={setProtein}
               keyboardType="numeric"
@@ -177,8 +182,8 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
             />
           </View>
           <View style={styles.overrideField}>
-            <Text style={styles.overrideLabel}>Fat</Text>
-            <TextInput
+            <Text style={styles.overrideLabel}>{t('today.fat')}</Text>
+            <AppInput
               value={fat}
               onChangeText={setFat}
               keyboardType="numeric"
@@ -189,13 +194,13 @@ export const EditEntryScreen = ({ navigation, route }: Props): React.JSX.Element
         </View>
       ) : null}
 
-      <Pressable style={styles.primaryButton} onPress={() => handleSave().catch(() => undefined)} testID="edit-entry-save-button">
-        <Text style={styles.primaryLabel}>{isSaving ? 'Saving...' : 'Save changes'}</Text>
-      </Pressable>
+      <AppButton onPress={() => handleSave().catch(() => undefined)} testID="edit-entry-save-button">
+        {isSaving ? t('editEntry.saving') : t('editEntry.saveChanges')}
+      </AppButton>
 
-      <Pressable style={styles.deleteButton} onPress={handleDelete} testID="edit-entry-delete-button">
-        <Text style={styles.deleteLabel}>Delete entry</Text>
-      </Pressable>
+      <AppButton variant="danger" onPress={handleDelete} testID="edit-entry-delete-button">
+        {t('editEntry.deleteEntry')}
+      </AppButton>
     </ScrollView>
   );
 };
@@ -227,13 +232,9 @@ const styles = StyleSheet.create({
   },
   textInput: {
     minHeight: 140,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
+  },
+  textInputContent: {
     textAlignVertical: 'top',
-    color: colors.textPrimary,
     fontSize: 16,
   },
   toggleRow: {
@@ -261,37 +262,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   overrideInput: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  primaryButton: {
     height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryLabel: {
-    color: colors.surface,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: '#FFEDE8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteLabel: {
-    color: colors.error,
-    fontWeight: '700',
   },
 });
-

@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useDayEntries } from '../../hooks/useDayEntries';
@@ -13,6 +14,7 @@ import { colors, spacing } from '../../theme/tokens';
 type Props = NativeStackScreenProps<HistoryStackParamList, 'DayDetail'>;
 
 export const DayDetailScreen = ({ navigation, route }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { entries, totals } = useDayEntries(user?.uid ?? null, route.params.dateKey);
 
@@ -40,18 +42,18 @@ export const DayDetailScreen = ({ navigation, route }: Props): React.JSX.Element
             entry={item}
             onPress={entry =>
               (navigation.getParent() as any)?.navigate('TodayTab', {
-                  screen: 'EntryDetail',
-                  params: {
-                    dateKey: route.params.dateKey,
-                    entryId: entry.id,
-                  },
-                })
+                screen: 'EntryDetail',
+                params: {
+                  dateKey: route.params.dateKey,
+                  entryId: entry.id,
+                },
+              })
             }
           />
         )}
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={styles.listSpacer} />}
-        ListEmptyComponent={<Text style={styles.empty}>No entries for this day.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t('history.dayEmpty')}</Text>}
       />
 
       <View style={styles.bottomWrap}>

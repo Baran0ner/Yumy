@@ -1,10 +1,12 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import type { JournalEntry } from '../../types/firestore';
 import type { TodayStackParamList } from '../../navigation/types';
 import { duplicateEntry, saveMealFromEntry, subscribeEntry } from '../../services/journalService';
+import { AppCard } from '../../components/common/AppCard';
 import { colors, elevation, spacing } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<TodayStackParamList, 'EntryDetail'>;
@@ -19,19 +21,19 @@ const PROTEIN_ICON = '\u{1F9C8}';
 const CARBS_ICON = '\u{1F353}';
 const FAT_ICON = '\u{1F48A}';
 
-const getConfidenceMeta = (confidence: number) => {
+const getConfidenceMeta = (confidence: number, t: (key: string) => string) => {
   if (confidence >= 0.7) {
-    return { label: 'High', color: '#2EBE6E' };
+    return { label: t('entryDetail.confidenceHigh'), color: '#2EBE6E' };
   }
 
   if (confidence >= 0.45) {
-    return { label: 'Medium', color: '#EAA038' };
+    return { label: t('entryDetail.confidenceMedium'), color: '#EAA038' };
   }
 
-  return { label: 'Low', color: '#D86363' };
+  return { label: t('entryDetail.confidenceLow'), color: '#D86363' };
 };
 
-const buildFallbackItems = (entry: JournalEntry): DetailItem[] => {
+const buildFallbackItems = (entry: JournalEntry, t: (key: string) => string): DetailItem[] => {
   const totalCalories = Math.max(0, Math.round(entry.nutrition.calories));
   if (totalCalories === 0) {
     return [];
@@ -43,7 +45,7 @@ const buildFallbackItems = (entry: JournalEntry): DetailItem[] => {
     .filter(Boolean);
 
   if (parts.length <= 1) {
-    return [{ name: entry.mealText || 'Meal item', calories: totalCalories }];
+    return [{ name: entry.mealText || t('entryDetail.mealItem'), calories: totalCalories }];
   }
 
   const evenSplit = Math.floor(totalCalories / parts.length);
@@ -57,6 +59,7 @@ const buildFallbackItems = (entry: JournalEntry): DetailItem[] => {
 };
 
 export const EntryDetailScreen = ({ navigation, route }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const [entry, setEntry] = useState<JournalEntry | null>(null);
 
@@ -82,7 +85,7 @@ export const EntryDetailScreen = ({ navigation, route }: Props): React.JSX.Eleme
     }
 
     await duplicateEntry(user.uid, route.params.dateKey, entry);
-    Alert.alert('Duplicated', 'Entry duplicated in your list.');
+    Alert.alert(t('entryDetail.duplicatedTitle'), t('entryDetail.duplicatedBody'));
   };
 
   const handleSaveMeal = async () => {
@@ -90,24 +93,24 @@ export const EntryDetailScreen = ({ navigation, route }: Props): React.JSX.Eleme
       return;
     }
 
-    const fallbackTitle = entry.mealText.slice(0, 36) || 'Saved meal';
+    const fallbackTitle = entry.mealText.slice(0, 36) || t('savedMeals.title');
     await saveMealFromEntry(user.uid, entry, fallbackTitle);
-    Alert.alert('Saved', 'Meal added to saved meals.');
+    Alert.alert(t('entryDetail.savedTitle'), t('entryDetail.savedBody'));
   };
 
   const handleMorePress = () => {
-    Alert.alert('Entry actions', '', [
+    Alert.alert(t('entryDetail.actionsTitle'), '', [
       {
-        text: 'Edit',
+        text: t('entryDetail.edit'),
         onPress: () =>
           navigation.navigate('EditEntry', {
             dateKey: route.params.dateKey,
             entryId: route.params.entryId,
           }),
       },
-      { text: 'Duplicate', onPress: () => handleDuplicate().catch(() => undefined) },
-      { text: 'Save as Saved Meal', onPress: () => handleSaveMeal().catch(() => undefined) },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('entryDetail.duplicate'), onPress: () => handleDuplicate().catch(() => undefined) },
+      { text: t('entryDetail.saveAsMeal'), onPress: () => handleSaveMeal().catch(() => undefined) },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -123,26 +126,26 @@ export const EntryDetailScreen = ({ navigation, route }: Props): React.JSX.Eleme
       }));
     }
 
-    return buildFallbackItems(entry);
-  }, [entry]);
+    return buildFallbackItems(entry, t);
+  }, [entry, t]);
 
   if (!entry) {
     return (
       <View style={styles.centered} testID="screen-entry-detail">
-        <Text style={styles.placeholder}>Entry not found.</Text>
+        <Text style={styles.placeholder}>{t('entryDetail.notFound')}</Text>
       </View>
     );
   }
 
   const confidencePct = Math.max(0, Math.min(100, Math.round((entry.ai.confidence ?? 0) * 100)));
-  const confidenceMeta = getConfidenceMeta(entry.ai.confidence ?? 0);
+  const confidenceMeta = getConfidenceMeta(entry.ai.confidence ?? 0, t);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="screen-entry-detail">
       <View style={styles.dragHandle} />
 
       <View style={styles.topRow}>
-        <Text style={styles.navTitle}>Nutrition Details</Text>
+        <Text style={styles.navTitle}>{t('entryDetail.title')}</Text>
         <View style={styles.topActions}>
           <Pressable style={styles.topActionButton} onPress={handleMorePress} testID="entry-detail-more-button">
             <Text style={styles.topActionLabel}>•••</Text>
@@ -158,59 +161,63 @@ export const EntryDetailScreen = ({ navigation, route }: Props): React.JSX.Eleme
 
       <Text style={styles.mealTitle}>{entry.mealText}</Text>
 
-      <View style={styles.summaryCard}>
+      <AppCard style={styles.summaryCard} contentStyle={styles.summaryContent}>
         <View style={styles.calorieRow}>
           <Text style={styles.fireIcon}>{FIRE_ICON}</Text>
           <Text style={styles.calorieValue}>{Math.round(entry.nutrition.calories)}</Text>
-          <Text style={styles.calorieCaption}>total calories</Text>
+          <Text style={styles.calorieCaption}>{t('entryDetail.totalCalories')}</Text>
         </View>
 
         <View style={styles.macroGrid}>
           <View style={styles.macroCell}>
             <Text style={styles.macroValue}>{`${entry.nutrition.macros.proteinG.toFixed(1)} g`}</Text>
-            <Text style={styles.macroLabel}>{`${PROTEIN_ICON} Protein`}</Text>
+            <Text style={styles.macroLabel}>{`${PROTEIN_ICON} ${t('today.protein')}`}</Text>
           </View>
           <View style={styles.macroCell}>
             <Text style={styles.macroValue}>{`${entry.nutrition.macros.carbsG.toFixed(1)} g`}</Text>
-            <Text style={styles.macroLabel}>{`${CARBS_ICON} Carbs`}</Text>
+            <Text style={styles.macroLabel}>{`${CARBS_ICON} ${t('today.carbs')}`}</Text>
           </View>
           <View style={styles.macroCell}>
             <Text style={styles.macroValue}>{`${entry.nutrition.macros.fatG.toFixed(1)} g`}</Text>
-            <Text style={styles.macroLabel}>{`${FAT_ICON} Fat`}</Text>
+            <Text style={styles.macroLabel}>{`${FAT_ICON} ${t('today.fat')}`}</Text>
           </View>
         </View>
-      </View>
+      </AppCard>
 
-      <Text style={styles.sectionTitle}>Items</Text>
+      <Text style={styles.sectionTitle}>{t('entryDetail.items')}</Text>
       <View style={styles.itemsWrap}>
         {detailItems.length > 0 ? (
           detailItems.map((item, index) => (
-            <View key={`${item.name}-${index}`} style={styles.itemRow} testID={`entry-detail-item-${index}`}>
+            <AppCard
+              key={`${item.name}-${index}`}
+              style={styles.itemRow}
+              contentStyle={styles.itemRowContent}
+              testID={`entry-detail-item-${index}`}>
               <Text style={styles.itemName}>{item.name}</Text>
               <View style={styles.itemRight}>
-                <Text style={styles.itemCalories}>{`${item.calories} cal`}</Text>
+                <Text style={styles.itemCalories}>{`${item.calories} ${t('entryDetail.cal')}`}</Text>
                 <Text style={styles.itemChevron}>?</Text>
               </View>
-            </View>
+            </AppCard>
           ))
         ) : (
-          <View style={styles.itemRow}>
-            <Text style={styles.itemName}>No item breakdown yet</Text>
+          <AppCard style={styles.itemRow} contentStyle={styles.itemRowContent}>
+            <Text style={styles.itemName}>{t('entryDetail.noBreakdown')}</Text>
             <Text style={styles.itemCalories}>-</Text>
-          </View>
+          </AppCard>
         )}
       </View>
 
       {userDoc?.settings.showThoughtProcess ? (
         <>
-          <Text style={styles.sectionTitle}>Amy&apos;s thought process</Text>
-          <View style={styles.thoughtCard}>
+          <Text style={styles.sectionTitle}>{t('entryDetail.thoughtProcess')}</Text>
+          <AppCard style={styles.thoughtCard} contentStyle={styles.thoughtContent}>
             <View style={styles.confidenceRow}>
               <View style={[styles.confidenceRing, { borderColor: confidenceMeta.color }]}> 
                 <Text style={[styles.confidenceNumber, { color: confidenceMeta.color }]}>{confidencePct}</Text>
               </View>
               <View style={styles.confidenceTextWrap}>
-                <Text style={styles.confidenceCaption}>Confidence level</Text>
+                <Text style={styles.confidenceCaption}>{t('entryDetail.confidenceLevel')}</Text>
                 <Text style={[styles.confidenceLevel, { color: confidenceMeta.color }]}>
                   {confidenceMeta.label}
                 </Text>
@@ -218,11 +225,11 @@ export const EntryDetailScreen = ({ navigation, route }: Props): React.JSX.Eleme
             </View>
 
             <Text style={styles.reasoningText}>
-              {entry.ai.reasoningSummary || 'No thought process available for this entry yet.'}
+              {entry.ai.reasoningSummary || t('entryDetail.noThoughtProcess')}
             </Text>
 
-            <Text style={styles.sourcesText}>{`Sources used: ${entry.ai.sourcesCount}`}</Text>
-          </View>
+            <Text style={styles.sourcesText}>{`${t('entryDetail.sourcesUsed')}: ${entry.ai.sourcesCount}`}</Text>
+          </AppCard>
         </>
       ) : null}
     </ScrollView>
@@ -297,12 +304,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   summaryCard: {
-    backgroundColor: colors.surface,
     borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#F1EEE7',
+  },
+  summaryContent: {
     padding: spacing.lg,
-    ...elevation.card,
   },
   calorieRow: {
     flexDirection: 'row',
@@ -357,15 +362,13 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     minHeight: 76,
-    backgroundColor: colors.surface,
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#F1EEE7',
+  },
+  itemRowContent: {
     paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    ...elevation.card,
   },
   itemName: {
     flex: 1,
@@ -390,12 +393,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   thoughtCard: {
-    backgroundColor: colors.surface,
     borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#F1EEE7',
+  },
+  thoughtContent: {
     padding: spacing.md,
-    ...elevation.card,
   },
   confidenceRow: {
     flexDirection: 'row',
@@ -441,4 +442,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

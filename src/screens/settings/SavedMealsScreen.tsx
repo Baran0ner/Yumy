@@ -1,5 +1,6 @@
-ï»¿import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import type { SavedMeal } from '../../types/firestore';
@@ -7,12 +8,15 @@ import type { SettingsStackParamList } from '../../navigation/types';
 import { quickAddSavedMeal, subscribeSavedMeals } from '../../services/journalService';
 import { toDateKey } from '../../utils/date';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'SavedMeals'>;
 
 export const SavedMealsScreen = ({ route }: Props): React.JSX.Element => {
-  const { user } = useAuth();
+  const { t } = useTranslation();
+  const { user, canLogMeals, startGuestTrialIfNeeded } = useAuth();
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
 
   const targetDate = useMemo(() => route.params?.dateKey ?? toDateKey(new Date()), [route.params]);
@@ -36,33 +40,42 @@ export const SavedMealsScreen = ({ route }: Props): React.JSX.Element => {
       return;
     }
 
+    if (!canLogMeals) {
+      Alert.alert(t('common.signIn'), t('today.quickAddBlocked'));
+      return;
+    }
+
     await quickAddSavedMeal(user.uid, targetDate, meal);
-    Alert.alert('Added', 'Saved meal added to Today.');
+    await startGuestTrialIfNeeded();
+    Alert.alert(t('savedMeals.addedTitle'), t('savedMeals.addedBody'));
   };
 
   return (
     <ScreenContainer testID="screen-saved-meals" style={styles.container}>
-      <Text style={styles.title}>Saved Meals</Text>
-      <Text style={styles.subtitle}>Quick add meals to {targetDate}</Text>
+      <Text style={styles.title}>{t('savedMeals.title')}</Text>
+      <Text style={styles.subtitle}>{t('savedMeals.subtitle', { date: targetDate })}</Text>
 
       <FlatList
         data={savedMeals}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <View style={styles.card} testID={`saved-meal-${item.id}`}>
+          <AppCard style={styles.card} contentStyle={styles.cardContent} testID={`saved-meal-${item.id}`}>
             <Text style={styles.cardTitle}>{item.title}</Text>
             <Text style={styles.cardBody} numberOfLines={2}>
               {item.defaultText}
             </Text>
             {item.nutritionSnapshot ? (
-              <Text style={styles.cardMeta}>{`?? ${item.nutritionSnapshot.calories} Â· C ${item.nutritionSnapshot.macros.carbsG} Â· P ${item.nutritionSnapshot.macros.proteinG} Â· F ${item.nutritionSnapshot.macros.fatG}`}</Text>
+              <Text style={styles.cardMeta}>{`\u{1F525} ${item.nutritionSnapshot.calories} · C ${item.nutritionSnapshot.macros.carbsG} · P ${item.nutritionSnapshot.macros.proteinG} · F ${item.nutritionSnapshot.macros.fatG}`}</Text>
             ) : null}
-            <Pressable style={styles.quickButton} onPress={() => handleQuickAdd(item).catch(() => undefined)} testID={`saved-meal-quick-add-${item.id}`}>
-              <Text style={styles.quickButtonLabel}>Quick add</Text>
-            </Pressable>
-          </View>
+            <AppButton
+              size="sm"
+              onPress={() => handleQuickAdd(item).catch(() => undefined)}
+              testID={`saved-meal-quick-add-${item.id}`}>
+              {t('savedMeals.quickAdd')}
+            </AppButton>
+          </AppCard>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No saved meals yet. Save from entry detail.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t('savedMeals.empty')}</Text>}
       />
     </ScreenContainer>
   );
@@ -84,42 +97,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
     marginBottom: spacing.sm,
+  },
+  cardContent: {
+    gap: spacing.xs,
   },
   cardTitle: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: spacing.xs,
   },
   cardBody: {
     color: colors.textSecondary,
     fontWeight: '500',
-    marginBottom: spacing.xs,
   },
   cardMeta: {
     color: colors.textPrimary,
     fontWeight: '600',
     fontSize: 12,
-    marginBottom: spacing.sm,
-  },
-  quickButton: {
-    alignSelf: 'flex-start',
-    height: 34,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    paddingHorizontal: spacing.md,
-    justifyContent: 'center',
-  },
-  quickButtonLabel: {
-    color: colors.surface,
-    fontWeight: '700',
-    fontSize: 13,
+    marginBottom: spacing.xs,
   },
   empty: {
     textAlign: 'center',
@@ -127,4 +123,3 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
 });
-

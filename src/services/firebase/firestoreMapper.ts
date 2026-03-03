@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   AnalyzeItem,
   DayDoc,
   EntryDoc,
@@ -66,6 +66,9 @@ export const mapUserDoc = (value: unknown): UserDoc => {
         ...defaultSettings.remindersWindow,
         ...(settings.remindersWindow ?? {}),
       },
+      guestTrialStartedAt: settings.guestTrialStartedAt ?? null,
+      guestTrialExpiresAt: settings.guestTrialExpiresAt ?? null,
+      guestTrialConsumed: Boolean(settings.guestTrialConsumed),
     },
     subscription: {
       ...defaultSubscription,
@@ -109,6 +112,8 @@ export const mapEntryDoc = (id: string, value: unknown): JournalEntry => {
     attachments: {
       photoUrl: source.attachments?.photoUrl,
       thumbnailUrl: source.attachments?.thumbnailUrl,
+      barcodeValue: source.attachments?.barcodeValue,
+      scanProvider: source.attachments?.scanProvider,
     },
   };
 };
@@ -124,6 +129,7 @@ export const mapDayDoc = (value: unknown): DayDoc => {
     },
     streakEligible: Boolean(source.streakEligible),
     updatedAt: toIso(source.updatedAt),
+    readyCount: numberOr(source.readyCount),
   };
 };
 
@@ -146,4 +152,3 @@ export const mapSavedMeal = (id: string, value: unknown): SavedMeal => {
     createdAt: toIso(source.createdAt),
   };
 };
-

@@ -1,4 +1,6 @@
-﻿export type Units = 'metric' | 'imperial';
+export type Units = 'metric' | 'imperial';
+
+export type AppLanguage = 'auto' | 'tr' | 'en';
 
 export type CalorieBias = 'over' | 'neutral' | 'under';
 
@@ -6,7 +8,13 @@ export type SubscriptionStatus = 'trial' | 'active' | 'inactive';
 
 export type SubscriptionProvider = 'revenuecat' | 'storekit' | 'play';
 
-export type EntrySource = 'text' | 'photo' | 'menu_scan' | 'saved_meal';
+export type EntrySource =
+  | 'text'
+  | 'photo'
+  | 'menu_scan'
+  | 'saved_meal'
+  | 'voice'
+  | 'barcode';
 
 export type EntryStatus = 'processing' | 'ready' | 'error';
 
@@ -26,6 +34,7 @@ export type ReminderWindow = {
 };
 
 export type UserSettings = {
+  language: AppLanguage;
   units: Units;
   calorieBias: CalorieBias;
   remindersEnabled: boolean;
@@ -37,6 +46,9 @@ export type UserSettings = {
   healthSyncSteps: boolean;
   showThoughtProcess: boolean;
   macroTargets: MacroTargets;
+  guestTrialStartedAt: string | null;
+  guestTrialExpiresAt: string | null;
+  guestTrialConsumed: boolean;
 };
 
 export type UserSubscription = {
@@ -59,6 +71,7 @@ export type DayDoc = {
   totalMacros: MacroTotals;
   streakEligible: boolean;
   updatedAt: string;
+  readyCount?: number;
 };
 
 export type NutritionMicros = {
@@ -88,6 +101,8 @@ export type EntryDoc = {
   attachments: {
     photoUrl?: string;
     thumbnailUrl?: string;
+    barcodeValue?: string;
+    scanProvider?: 'openfoodfacts' | 'manual';
   };
 };
 
@@ -139,5 +154,3 @@ export type JournalEntry = EntryDoc & {
 export type SavedMeal = SavedMealDoc & {
   id: string;
 };
-
-

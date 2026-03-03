@@ -1,6 +1,8 @@
-﻿import React from 'react';
-import { Pressable, StyleSheet, Text, type TextStyle, type ViewStyle } from 'react-native';
-import { colors, elevation, radius, spacing } from '../../theme/tokens';
+import React from 'react';
+import { StyleSheet, Text, type TextStyle, type ViewStyle } from 'react-native';
+import * as Animatable from 'react-native-animatable';
+import { colors, spacing } from '../../theme/tokens';
+import { AppCard } from './AppCard';
 
 type PillButtonProps = {
   label: string;
@@ -20,25 +22,25 @@ export const PillButton = ({
   labelStyle,
 }: PillButtonProps) => {
   return (
-    <Pressable style={[styles.pill, style]} onPress={onPress} testID={testID}>
-      <Text style={[styles.label, labelStyle]}>{label}</Text>
-      {rightLabel ? <Text style={styles.rightLabel}>{rightLabel}</Text> : null}
-    </Pressable>
+    <Animatable.View animation="fadeInUp" duration={280} useNativeDriver>
+      <AppCard onPress={onPress} testID={testID} style={[styles.card, style]} contentStyle={styles.content}>
+        <Text style={[styles.label, labelStyle]}>{label}</Text>
+        {rightLabel ? <Text style={styles.rightLabel}>{rightLabel}</Text> : null}
+      </AppCard>
+    </Animatable.View>
   );
 };
 
 const styles = StyleSheet.create({
-  pill: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  card: {
+    borderRadius: 24,
+  },
+  content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    ...elevation.card,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   label: {
     color: colors.textPrimary,
@@ -51,4 +53,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

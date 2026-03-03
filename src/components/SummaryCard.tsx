@@ -1,27 +1,29 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import type { DailySummary } from '../types/meal';
+import { AppCard } from './common/AppCard';
 
 type SummaryCardProps = {
   summary: DailySummary;
 };
 
 export const SummaryCard = ({ summary }: SummaryCardProps): React.JSX.Element => (
-  <View style={styles.card}>
+  <AppCard style={styles.card} contentStyle={styles.content}>
     <Text style={styles.title}>Günlük Özet</Text>
     <Text style={styles.calories}>{summary.calories} kCal</Text>
     <Text style={styles.macros}>
       Protein {summary.protein}g · Karbonhidrat {summary.carbs}g · Yağ {summary.fat}g
     </Text>
-  </View>
+  </AppCard>
 );
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#F5F7E8',
     borderRadius: 16,
-    padding: 16,
     marginBottom: 16,
+  },
+  content: {
+    padding: 16,
   },
   title: {
     color: '#3D4F29',

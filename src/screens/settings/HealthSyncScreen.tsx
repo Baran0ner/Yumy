@@ -1,12 +1,16 @@
-﻿import React, { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Switch, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useUserSettingsActions } from '../../hooks/useUserSettingsActions';
 import { readHealthSnapshot, requestHealthPermissions } from '../../services/healthService';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 export const HealthSyncScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const { setHealthSync, setHealthSyncWeight, setHealthSyncSteps } = useUserSettingsActions(user?.uid ?? null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -29,16 +33,16 @@ export const HealthSyncScreen = (): React.JSX.Element => {
     try {
       const permission = await requestHealthPermissions({ syncWeight, syncSteps });
       if (!permission.granted) {
-        setStatusMessage(permission.message ?? 'Permission denied.');
+        setStatusMessage(permission.message ?? t('healthSync.permissionDenied'));
         return;
       }
 
       const snapshot = await readHealthSnapshot({ syncWeight, syncSteps });
       setLatestWeight(snapshot.latestWeightKg);
       setTodaySteps(snapshot.todaySteps);
-      setStatusMessage('Permissions granted and latest data synced.');
+      setStatusMessage(t('healthSync.synced'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not sync health data.';
+      const message = error instanceof Error ? error.message : t('healthSync.syncFailed');
       setStatusMessage(message);
     } finally {
       setIsRequesting(false);
@@ -47,23 +51,23 @@ export const HealthSyncScreen = (): React.JSX.Element => {
 
   return (
     <ScreenContainer testID="screen-health-sync" style={styles.container}>
-      <Text style={styles.title}>Health Sync</Text>
+      <Text style={styles.title}>{t('healthSync.title')}</Text>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
         <View style={styles.row}>
-          <Text style={styles.label}>Enable Apple Health / Google Fit</Text>
+          <Text style={styles.label}>{t('healthSync.enable')}</Text>
           <Switch
             value={healthSyncEnabled}
             onValueChange={value => setHealthSync(value).catch(() => undefined)}
             testID="health-sync-master-toggle"
           />
         </View>
-        <Text style={styles.caption}>If permission is denied, app continues without syncing.</Text>
-      </View>
+        <Text style={styles.caption}>{t('healthSync.caption')}</Text>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
         <View style={styles.row}>
-          <Text style={styles.label}>Sync weight</Text>
+          <Text style={styles.label}>{t('healthSync.syncWeight')}</Text>
           <Switch
             value={syncWeight}
             onValueChange={value => setHealthSyncWeight(value).catch(() => undefined)}
@@ -72,7 +76,7 @@ export const HealthSyncScreen = (): React.JSX.Element => {
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Sync steps</Text>
+          <Text style={styles.label}>{t('healthSync.syncSteps')}</Text>
           <Switch
             value={syncSteps}
             onValueChange={value => setHealthSyncSteps(value).catch(() => undefined)}
@@ -80,19 +84,18 @@ export const HealthSyncScreen = (): React.JSX.Element => {
           />
         </View>
 
-        <Pressable
-          style={[styles.button, isRequesting && styles.buttonDisabled]}
+        <AppButton
           onPress={() => handleRequestPermissions().catch(() => undefined)}
           disabled={isRequesting || !healthSyncEnabled}
           testID="health-sync-request-permission-button">
-          <Text style={styles.buttonLabel}>{isRequesting ? 'Syncing...' : 'Request permissions'}</Text>
-        </Pressable>
+          {isRequesting ? t('healthSync.syncing') : t('healthSync.requestPermissions')}
+        </AppButton>
 
-        <Text style={styles.snapshotLabel}>{`Latest weight: ${latestWeight != null ? `${latestWeight} kg` : 'N/A'}`}</Text>
-        <Text style={styles.snapshotLabel}>{`Today steps: ${todaySteps != null ? `${todaySteps}` : 'N/A'}`}</Text>
+        <Text style={styles.snapshotLabel}>{`${t('healthSync.latestWeight')}: ${latestWeight != null ? `${latestWeight} kg` : 'N/A'}`}</Text>
+        <Text style={styles.snapshotLabel}>{`${t('healthSync.todaySteps')}: ${todaySteps != null ? `${todaySteps}` : 'N/A'}`}</Text>
 
         {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
-      </View>
+      </AppCard>
     </ScreenContainer>
   );
 };
@@ -109,11 +112,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  cardContent: {
     gap: spacing.sm,
   },
   row: {
@@ -131,21 +132,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '500',
-  },
-  button: {
-    marginTop: spacing.sm,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonLabel: {
-    color: colors.surface,
-    fontWeight: '700',
   },
   snapshotLabel: {
     color: colors.textPrimary,

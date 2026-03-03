@@ -1,6 +1,7 @@
-﻿import React, { useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import type { TodayStackParamList } from '../../navigation/types';
@@ -11,12 +12,14 @@ import {
   markEntryAsError,
 } from '../../services/journalService';
 import { uploadMealPhoto } from '../../services/storageService';
+import { AppButton } from '../../components/common/AppButton';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<TodayStackParamList, 'PhotoCapture'>;
 
 export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Element => {
-  const { user, userDoc } = useAuth();
+  const { t } = useTranslation();
+  const { user, userDoc, canLogMeals, startGuestTrialIfNeeded } = useAuth();
   const [selectedUri, setSelectedUri] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -34,7 +37,7 @@ export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Elem
 
     const uri = response.assets?.[0]?.uri;
     if (!uri) {
-      Alert.alert('Could not capture photo.');
+      Alert.alert(t('photo.captureFailed'));
       return;
     }
 
@@ -54,7 +57,7 @@ export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Elem
 
     const uri = response.assets?.[0]?.uri;
     if (!uri) {
-      Alert.alert('Could not select photo.');
+      Alert.alert(t('photo.selectFailed'));
       return;
     }
 
@@ -67,7 +70,7 @@ export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Elem
     retries = 1,
   ) => {
     if (!userDoc) {
-      throw new Error('Missing user settings.');
+      throw new Error(t('photo.missingSettings'));
     }
 
     try {
@@ -94,11 +97,16 @@ export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Elem
       return;
     }
 
+    if (!canLogMeals) {
+      Alert.alert(t('common.signIn'), t('today.quickAddBlocked'));
+      return;
+    }
+
     setIsSubmitting(true);
     const dateKey = route.params.dateKey;
 
     const entryId = await createProcessingEntry(user.uid, dateKey, {
-      mealText: 'Photo meal',
+      mealText: t('photo.photoMeal'),
       source: 'photo',
     });
 
@@ -109,8 +117,9 @@ export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Elem
       const analysis = await runAnalysisWithRetry(photoUrl, dateKey);
 
       await applyAnalysisResultToEntry(user.uid, dateKey, entryId, analysis);
+      await startGuestTrialIfNeeded();
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'Could not estimate nutrition from photo.';
+      const reason = error instanceof Error ? error.message : t('photo.estimateFailed');
       await markEntryAsError(user.uid, dateKey, entryId, reason);
     } finally {
       setIsSubmitting(false);
@@ -119,36 +128,35 @@ export const PhotoCaptureScreen = ({ navigation, route }: Props): React.JSX.Elem
 
   return (
     <View style={styles.screen} testID="screen-photo-capture">
-      <Text style={styles.title}>Add meal by photo</Text>
+      <Text style={styles.title}>{t('photo.title')}</Text>
 
       {selectedUri ? (
         <Image source={{ uri: selectedUri }} style={styles.preview} resizeMode="cover" />
       ) : (
         <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>No photo selected yet.</Text>
+          <Text style={styles.placeholderText}>{t('photo.noPhoto')}</Text>
         </View>
       )}
 
       <View style={styles.actions}>
-        <Pressable style={styles.secondaryButton} onPress={() => pickFromCamera().catch(() => undefined)} testID="photo-capture-camera-button">
-          <Text style={styles.secondaryButtonLabel}>Take photo</Text>
-        </Pressable>
+        <AppButton variant="outline" onPress={() => pickFromCamera().catch(() => undefined)} testID="photo-capture-camera-button">
+          {t('photo.takePhoto')}
+        </AppButton>
 
-        <Pressable style={styles.secondaryButton} onPress={() => pickFromLibrary().catch(() => undefined)} testID="photo-capture-gallery-button">
-          <Text style={styles.secondaryButtonLabel}>Choose from gallery</Text>
-        </Pressable>
+        <AppButton variant="outline" onPress={() => pickFromLibrary().catch(() => undefined)} testID="photo-capture-gallery-button">
+          {t('photo.chooseGallery')}
+        </AppButton>
 
-        <Pressable
-          style={[styles.primaryButton, (!selectedUri || isSubmitting) && styles.buttonDisabled]}
+        <AppButton
           disabled={!selectedUri || isSubmitting}
           onPress={() => handleUsePhoto().catch(() => undefined)}
           testID="photo-capture-use-photo-button">
-          <Text style={styles.primaryButtonLabel}>{isSubmitting ? 'Uploading...' : 'Use photo'}</Text>
-        </Pressable>
+          {isSubmitting ? t('photo.uploading') : t('photo.usePhoto')}
+        </AppButton>
 
-        <Pressable onPress={() => navigation.goBack()} style={styles.cancelButton} testID="photo-capture-cancel-button">
-          <Text style={styles.cancelButtonLabel}>Cancel</Text>
-        </Pressable>
+        <AppButton variant="text" onPress={() => navigation.goBack()} testID="photo-capture-cancel-button">
+          {t('common.cancel')}
+        </AppButton>
       </View>
     </View>
   );
@@ -193,44 +201,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     gap: spacing.sm,
   },
-  secondaryButton: {
-    height: 46,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryButtonLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  primaryButton: {
-    marginTop: spacing.sm,
-    height: 50,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButtonLabel: {
-    color: colors.surface,
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  cancelButton: {
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonLabel: {
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
 });
-
-

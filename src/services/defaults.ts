@@ -1,4 +1,4 @@
-﻿import type { MacroTargets, UserSettings, UserSubscription } from '../types/firestore';
+import type { MacroTargets, UserSettings, UserSubscription } from '../types/firestore';
 
 export const defaultMacroTargets: MacroTargets = {
   calories: 2200,
@@ -8,6 +8,7 @@ export const defaultMacroTargets: MacroTargets = {
 };
 
 export const defaultSettings: UserSettings = {
+  language: 'auto',
   units: 'metric',
   calorieBias: 'neutral',
   remindersEnabled: false,
@@ -19,6 +20,9 @@ export const defaultSettings: UserSettings = {
   healthSyncSteps: false,
   showThoughtProcess: true,
   macroTargets: defaultMacroTargets,
+  guestTrialStartedAt: null,
+  guestTrialExpiresAt: null,
+  guestTrialConsumed: false,
 };
 
 export const defaultSubscription: UserSubscription = {
@@ -27,5 +31,3 @@ export const defaultSubscription: UserSubscription = {
   renewedAt: null,
   expiresAt: null,
 };
-
-

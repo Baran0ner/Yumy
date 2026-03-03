@@ -11,6 +11,7 @@ export type TodayStackParamList = {
   EntryDetail: { dateKey: string; entryId: string };
   EditEntry: { dateKey: string; entryId: string };
   PhotoCapture: { dateKey: string };
+  BarcodeScan: { dateKey: string };
 };
 
 export type HistoryStackParamList = {
@@ -30,6 +31,7 @@ export type SettingsStackParamList = {
   AISettings: undefined;
   HealthSync: undefined;
   Units: undefined;
+  Language: undefined;
   LocationRestaurants: undefined;
   SavedMeals: { dateKey?: string } | undefined;
   AccountSubscription: undefined;
@@ -49,4 +51,3 @@ export type RootStackParamList = {
   AppTabs: NavigatorScreenParams<AppTabsParamList>;
   PaywallModal: undefined;
 };
-

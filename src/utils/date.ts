@@ -1,4 +1,6 @@
-﻿const pad = (value: number): string => value.toString().padStart(2, '0');
+﻿import { getCurrentLocale } from '../i18n';
+
+const pad = (value: number): string => value.toString().padStart(2, '0');
 
 export const toDateKey = (value: string | Date): string => {
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -9,7 +11,7 @@ export const nowIso = (): string => new Date().toISOString();
 
 export const formatDatePill = (dateKey: string): string => {
   const date = new Date(`${dateKey}T12:00:00`);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(getCurrentLocale(), {
     month: 'short',
     day: 'numeric',
   });
@@ -17,7 +19,7 @@ export const formatDatePill = (dateKey: string): string => {
 
 export const formatLongDate = (dateKey: string): string => {
   const date = new Date(`${dateKey}T12:00:00`);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(getCurrentLocale(), {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -33,4 +35,3 @@ export const shiftDateKey = (dateKey: string, deltaDays: number): string => {
 
 export const compareDateKeyDesc = (left: string, right: string): number =>
   right.localeCompare(left);
-

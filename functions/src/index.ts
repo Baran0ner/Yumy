@@ -44,6 +44,26 @@ type GeminiResponse = {
   }>;
 };
 
+type OpenFoodFactsProduct = {
+  product_name?: string;
+  nutriments?: {
+    'energy-kcal_100g'?: number;
+    'energy-kcal'?: number;
+    energy_100g?: number;
+    proteins_100g?: number;
+    proteins?: number;
+    carbohydrates_100g?: number;
+    carbohydrates?: number;
+    fat_100g?: number;
+    fat?: number;
+  };
+};
+
+type OpenFoodFactsResponse = {
+  status?: number;
+  product?: OpenFoodFactsProduct;
+};
+
 const defaultResult: AnalyzeResult = {
   items: [],
   total: {
@@ -224,6 +244,142 @@ const parseBias = (value: unknown): Bias =>
 
 const parseUnits = (value: unknown): Units => (value === 'imperial' ? 'imperial' : 'metric');
 
+const parseMacro = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(parsed));
+};
+
+const parseIsoDate = (value: unknown): Date | null => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+export const startGuestTrial = onCall(async request => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+
+  const provider = request.auth.token.firebase?.sign_in_provider;
+  if (provider !== 'anonymous') {
+    throw new HttpsError('failed-precondition', 'Guest trial is available only for anonymous users.');
+  }
+
+  const uid = request.auth.uid;
+  const userRef = getFirestore().collection('users').doc(uid);
+  const snapshot = await userRef.get();
+  const data = snapshot.data() as
+    | {
+        settings?: {
+          guestTrialStartedAt?: string | null;
+          guestTrialExpiresAt?: string | null;
+          guestTrialConsumed?: boolean;
+        };
+      }
+    | undefined;
+  const settings = data?.settings ?? {};
+  const startedAt = parseIsoDate(settings.guestTrialStartedAt);
+  const expiresAt = parseIsoDate(settings.guestTrialExpiresAt);
+  const consumed = Boolean(settings.guestTrialConsumed);
+
+  if (startedAt && expiresAt) {
+    return {
+      startedAt: startedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      isStarted: true,
+      isActive: Date.now() < expiresAt.getTime(),
+      alreadyStarted: true,
+    };
+  }
+
+  if (consumed) {
+    throw new HttpsError('failed-precondition', 'Guest trial was already consumed.');
+  }
+
+  const now = new Date();
+  const end = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  await userRef.set(
+    {
+      settings: {
+        guestTrialStartedAt: now.toISOString(),
+        guestTrialExpiresAt: end.toISOString(),
+        guestTrialConsumed: true,
+      },
+    },
+    { merge: true },
+  );
+
+  return {
+    startedAt: now.toISOString(),
+    expiresAt: end.toISOString(),
+    isStarted: true,
+    isActive: true,
+    alreadyStarted: false,
+  };
+});
+
+export const lookupBarcode = onCall(async request => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication required.');
+  }
+
+  const barcode = String(request.data?.barcode ?? '').trim();
+
+  if (!/^\d{8,14}$/.test(barcode)) {
+    throw new HttpsError('invalid-argument', 'barcode must contain 8..14 digits.');
+  }
+
+  const response = await fetch(
+    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
+  );
+
+  if (!response.ok) {
+    throw new HttpsError('internal', 'OpenFoodFacts lookup failed.');
+  }
+
+  const payload = (await response.json()) as OpenFoodFactsResponse;
+
+  if (payload.status !== 1 || !payload.product) {
+    return {
+      found: false,
+      productName: '',
+      calories: 0,
+      macros: {
+        protein_g: 0,
+        carbs_g: 0,
+        fat_g: 0,
+      },
+      sourceTitle: 'OpenFoodFacts',
+    };
+  }
+
+  const nutriments = payload.product.nutriments ?? {};
+  const caloriesRaw =
+    nutriments['energy-kcal_100g'] ??
+    nutriments['energy-kcal'] ??
+    (nutriments.energy_100g ? nutriments.energy_100g / 4.184 : 0);
+
+  return {
+    found: true,
+    productName: String(payload.product.product_name ?? `Barcode ${barcode}`),
+    calories: parseMacro(caloriesRaw),
+    macros: {
+      protein_g: parseMacro(nutriments.proteins_100g ?? nutriments.proteins),
+      carbs_g: parseMacro(nutriments.carbohydrates_100g ?? nutriments.carbohydrates),
+      fat_g: parseMacro(nutriments.fat_100g ?? nutriments.fat),
+    },
+    sourceTitle: 'OpenFoodFacts',
+  };
+});
+
 export const analyzeMealText = onCall(async request => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -346,6 +502,7 @@ export const recomputeDayTotals = onCall(async request => {
         fatG: Math.round(totals.fatG),
       },
       streakEligible: totals.readyCount > 0,
+      readyCount: totals.readyCount,
       updatedAt: new Date().toISOString(),
     },
     { merge: true },
@@ -359,6 +516,6 @@ export const recomputeDayTotals = onCall(async request => {
       fatG: Math.round(totals.fatG),
     },
     streakEligible: totals.readyCount > 0,
+    readyCount: totals.readyCount,
   };
 });
-

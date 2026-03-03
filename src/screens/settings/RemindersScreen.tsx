@@ -1,14 +1,18 @@
-﻿import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Switch, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useUserSettingsActions } from '../../hooks/useUserSettingsActions';
 import { buildReminderTimes, cancelLocalReminders, scheduleLocalReminders } from '../../services/reminderService';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 const timeOptions = ['06:00', '08:00', '10:00', '20:00', '22:00', '23:00'];
 
 export const RemindersScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const {
     setReminderEnabled,
@@ -39,18 +43,18 @@ export const RemindersScreen = (): React.JSX.Element => {
       const scheduled = await scheduleLocalReminders(frequency, nextStart, nextEnd);
       setPreviewTimes(scheduled);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not schedule reminders.';
+      const message = error instanceof Error ? error.message : t('reminders.scheduleFailed');
       setScheduleError(message);
     }
   };
 
   return (
     <ScreenContainer testID="screen-reminders" style={styles.container}>
-      <Text style={styles.title}>Daily Tracking Reminders</Text>
+      <Text style={styles.title}>{t('reminders.title')}</Text>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
         <View style={styles.toggleRow}>
-          <Text style={styles.cardTitle}>Enable reminders</Text>
+          <Text style={styles.cardTitle}>{t('reminders.enable')}</Text>
           <Switch
             value={settings?.remindersEnabled ?? false}
             onValueChange={value => {
@@ -61,7 +65,7 @@ export const RemindersScreen = (): React.JSX.Element => {
                 scheduleLocalReminders(frequency, start, end)
                   .then(times => setPreviewTimes(times))
                   .catch(error => {
-                    const message = error instanceof Error ? error.message : 'Could not schedule reminders.';
+                    const message = error instanceof Error ? error.message : t('reminders.scheduleFailed');
                     setScheduleError(message);
                   });
               } else {
@@ -72,15 +76,16 @@ export const RemindersScreen = (): React.JSX.Element => {
             testID="reminders-enabled-toggle"
           />
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Frequency</Text>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
+        <Text style={styles.cardTitle}>{t('reminders.frequency')}</Text>
         <View style={styles.rowWrap}>
           {frequencyOptions.map(option => (
-            <Pressable
+            <AppButton
               key={option}
-              style={[styles.chip, frequency === option && styles.chipActive]}
+              variant={frequency === option ? 'primary' : 'outline'}
+              size="sm"
               onPress={() => {
                 setReminderFrequency(option).catch(() => undefined);
                 if (settings?.remindersEnabled) {
@@ -90,57 +95,59 @@ export const RemindersScreen = (): React.JSX.Element => {
                       setPreviewTimes(times);
                     })
                     .catch(error => {
-                      const message = error instanceof Error ? error.message : 'Could not schedule reminders.';
+                      const message = error instanceof Error ? error.message : t('reminders.scheduleFailed');
                       setScheduleError(message);
                     });
                 }
               }}
               testID={`reminders-frequency-${option}`}>
-              <Text style={styles.chipLabel}>{`${option}`}</Text>
-            </Pressable>
+              {`${option}`}
+            </AppButton>
           ))}
         </View>
-        <Text style={styles.caption}>{`${frequency} times a day`}</Text>
-      </View>
+        <Text style={styles.caption}>{t('reminders.timesPerDay', { count: frequency })}</Text>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Time window</Text>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
+        <Text style={styles.cardTitle}>{t('reminders.timeWindow')}</Text>
 
-        <Text style={styles.subLabel}>Start</Text>
+        <Text style={styles.subLabel}>{t('reminders.start')}</Text>
         <View style={styles.rowWrap}>
           {timeOptions.map(option => (
-            <Pressable
+            <AppButton
               key={`start-${option}`}
-              style={[styles.chip, start === option && styles.chipActive]}
+              variant={start === option ? 'primary' : 'outline'}
+              size="sm"
               onPress={() => updateWindow(option, end).catch(() => undefined)}
               testID={`reminders-window-start-${option}`}>
-              <Text style={styles.chipLabel}>{option}</Text>
-            </Pressable>
+              {option}
+            </AppButton>
           ))}
         </View>
 
-        <Text style={styles.subLabel}>End</Text>
+        <Text style={styles.subLabel}>{t('reminders.end')}</Text>
         <View style={styles.rowWrap}>
           {timeOptions.map(option => (
-            <Pressable
+            <AppButton
               key={`end-${option}`}
-              style={[styles.chip, end === option && styles.chipActive]}
+              variant={end === option ? 'primary' : 'outline'}
+              size="sm"
               onPress={() => updateWindow(start, option).catch(() => undefined)}
               testID={`reminders-window-end-${option}`}>
-              <Text style={styles.chipLabel}>{option}</Text>
-            </Pressable>
+              {option}
+            </AppButton>
           ))}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Scheduled times</Text>
-        <Text style={styles.caption}>Device notification schedule preview.</Text>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
+        <Text style={styles.cardTitle}>{t('reminders.scheduledTimes')}</Text>
+        <Text style={styles.caption}>{t('reminders.devicePreview')}</Text>
         <Text style={styles.times}>
-          {(previewTimes.length > 0 ? previewTimes : computedTimes).join(' · ') || 'None'}
+          {(previewTimes.length > 0 ? previewTimes : computedTimes).join(' � ') || t('reminders.none')}
         </Text>
         {scheduleError ? <Text style={styles.errorText}>{scheduleError}</Text> : null}
-      </View>
+      </AppCard>
     </ScreenContainer>
   );
 };
@@ -156,11 +163,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  cardContent: {
+    gap: spacing.sm,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -177,22 +183,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
-  },
-  chip: {
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  chipActive: {
-    backgroundColor: '#FFF1E4',
-    borderColor: '#FFD5AA',
-  },
-  chipLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 12,
   },
   subLabel: {
     marginTop: spacing.sm,

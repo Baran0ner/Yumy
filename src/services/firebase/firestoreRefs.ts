@@ -16,3 +16,5 @@ export const savedMealsCollectionRef = (uid: string) => userDocRef(uid).collecti
 
 export const savedMealDocRef = (uid: string, mealId: string) => savedMealsCollectionRef(uid).doc(mealId);
 
+export const analyticsEventsCollectionRef = (uid: string) => userDocRef(uid).collection('analyticsEvents');
+

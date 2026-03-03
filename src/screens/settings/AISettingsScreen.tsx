@@ -1,18 +1,22 @@
-﻿import React from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Switch, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useUserSettingsActions } from '../../hooks/useUserSettingsActions';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
 import type { CalorieBias } from '../../types/firestore';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, spacing } from '../../theme/tokens';
 
-const biasOptions: Array<{ label: string; value: CalorieBias }> = [
-  { label: 'Overestimate', value: 'over' },
-  { label: 'Neutral', value: 'neutral' },
-  { label: 'Underestimate', value: 'under' },
+const biasOptions: Array<{ key: string; value: CalorieBias }> = [
+  { key: 'overestimate', value: 'over' },
+  { key: 'neutral', value: 'neutral' },
+  { key: 'underestimate', value: 'under' },
 ];
 
 export const AISettingsScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const { setCalorieBias, setThoughtProcessVisible } = useUserSettingsActions(user?.uid ?? null);
 
@@ -20,32 +24,32 @@ export const AISettingsScreen = (): React.JSX.Element => {
 
   return (
     <ScreenContainer testID="screen-ai-settings" style={styles.container}>
-      <Text style={styles.title}>AI Settings</Text>
+      <Text style={styles.title}>{t('aiSettings.title')}</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Calorie estimate bias</Text>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
+        <Text style={styles.cardTitle}>{t('aiSettings.calorieEstimateBias')}</Text>
         {biasOptions.map(option => (
-          <Pressable
+          <AppButton
             key={option.value}
-            style={[styles.option, currentBias === option.value && styles.optionActive]}
+            variant={currentBias === option.value ? 'primary' : 'outline'}
             onPress={() => setCalorieBias(option.value).catch(() => undefined)}
             testID={`ai-bias-${option.value}`}>
-            <Text style={styles.optionLabel}>{option.label}</Text>
-          </Pressable>
+            {t(`aiSettings.${option.key}`)}
+          </AppButton>
         ))}
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
         <View style={styles.toggleRow}>
-          <Text style={styles.cardTitle}>Show thought process</Text>
+          <Text style={styles.cardTitle}>{t('aiSettings.showThoughtProcess')}</Text>
           <Switch
             value={userDoc?.settings.showThoughtProcess ?? true}
             onValueChange={value => setThoughtProcessVisible(value).catch(() => undefined)}
             testID="ai-settings-thought-toggle"
           />
         </View>
-        <Text style={styles.caption}>Reasoning summary can be shown on entry detail screen.</Text>
-      </View>
+        <Text style={styles.caption}>{t('aiSettings.caption')}</Text>
+      </AppCard>
     </ScreenContainer>
   );
 };
@@ -62,35 +66,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  cardContent: {
+    gap: spacing.sm,
   },
   cardTitle: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: spacing.sm,
-  },
-  option: {
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  optionActive: {
-    backgroundColor: '#FFF1E4',
-    borderColor: '#FFD5AA',
-  },
-  optionLabel: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
   },
   toggleRow: {
     flexDirection: 'row',
@@ -103,4 +87,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-

@@ -1,11 +1,13 @@
 ﻿import React from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useUserSettingsActions } from '../../hooks/useUserSettingsActions';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
 import { colors, radius, spacing } from '../../theme/tokens';
 
 export const LocationRestaurantsScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const { setLocationForRestaurants } = useUserSettingsActions(user?.uid ?? null);
 
@@ -13,22 +15,22 @@ export const LocationRestaurantsScreen = (): React.JSX.Element => {
 
   return (
     <ScreenContainer testID="screen-location-restaurants" style={styles.container}>
-      <Text style={styles.title}>Location for Restaurants</Text>
+      <Text style={styles.title}>{t('location.title')}</Text>
 
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>Use location</Text>
+          <Text style={styles.label}>{t('location.useLocation')}</Text>
           <Switch
             value={userDoc?.settings.useLocationForRestaurants ?? false}
             onValueChange={value => setLocationForRestaurants(value).catch(() => undefined)}
             testID="location-restaurants-toggle"
           />
         </View>
-        <Text style={styles.caption}>Only city/region level context is sent to AI prompts.</Text>
-        <Text style={styles.city}>{`Current city preview: ${cityPreview}`}</Text>
+        <Text style={styles.caption}>{t('location.caption')}</Text>
+        <Text style={styles.city}>{`${t('location.cityPreview')}: ${cityPreview}`}</Text>
       </View>
 
-      <Text style={styles.note}>If permission is denied, logging still works normally.</Text>
+      <Text style={styles.note}>{t('location.note')}</Text>
     </ScreenContainer>
   );
 };
@@ -79,4 +81,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
@@ -130,6 +131,7 @@ const MacroRatioRow = ({
 };
 
 export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const { streakCount } = useDaysSummary(user?.uid ?? null);
   const { setMacroTargets } = useUserSettingsActions(user?.uid ?? null);
@@ -197,7 +199,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
   return (
     <ScreenContainer testID="screen-goals" style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Goals at a glance</Text>
+        <Text style={styles.title}>{t('goals.title')}</Text>
         <Pressable style={styles.moreButton} onPress={() => undefined}>
           <Text style={styles.moreButtonLabel}>...</Text>
         </Pressable>
@@ -207,7 +209,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         <View style={styles.cardHeader}>
           <View style={styles.eyebrowWrap}>
             <SymbolIcon label="TG" backgroundColor="#EEF1F8" textColor="#2F405D" />
-            <Text style={styles.cardEyebrow}>Daily target</Text>
+            <Text style={styles.cardEyebrow}>{t('goals.dailyTarget')}</Text>
           </View>
           <SymbolIcon label="FX" backgroundColor="#FDEDDC" textColor="#C97310" />
         </View>
@@ -237,7 +239,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         <View style={styles.cardHeader}>
           <View style={styles.eyebrowWrap}>
             <SymbolIcon label="MC" backgroundColor="#F2F0E9" textColor="#636363" />
-            <Text style={styles.cardEyebrow}>Macro ratios</Text>
+            <Text style={styles.cardEyebrow}>{t('goals.macroRatios')}</Text>
           </View>
           <View style={styles.balanceBadge}>
             <Text style={styles.balanceBadgeLabel}>BAL</Text>
@@ -247,7 +249,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         <MacroRatioRow
           iconLabel="PR"
           iconColor="#10B981"
-          label="Protein"
+          label={t('today.protein')}
           value={draftTargets.proteinG}
           min={20}
           max={300}
@@ -260,7 +262,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         <MacroRatioRow
           iconLabel="CB"
           iconColor="#F59E0B"
-          label="Carbs"
+          label={t('today.carbs')}
           value={draftTargets.carbsG}
           min={20}
           max={400}
@@ -273,7 +275,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         <MacroRatioRow
           iconLabel="FT"
           iconColor="#F43F5E"
-          label="Fat"
+          label={t('today.fat')}
           value={draftTargets.fatG}
           min={20}
           max={150}
@@ -289,20 +291,20 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         <View style={styles.cardHeader}>
           <View style={styles.eyebrowWrap}>
             <SymbolIcon label="ST" backgroundColor="#FFF4E8" textColor="#C97310" />
-            <Text style={styles.cardEyebrow}>Current streak</Text>
+            <Text style={styles.cardEyebrow}>{t('goals.currentStreak')}</Text>
           </View>
           <SymbolIcon label="FX" backgroundColor="#FFF4E8" textColor="#C97310" />
         </View>
         <View style={styles.streakMetricRow}>
           <Text style={styles.streakCount}>{streakCount}</Text>
-          <Text style={styles.streakUnit}>days</Text>
+          <Text style={styles.streakUnit}>{t('goals.days')}</Text>
         </View>
-        <Text style={styles.streakHint}>Keep it going!</Text>
+        <Text style={styles.streakHint}>{t('goals.streakHint')}</Text>
         <Pressable
           style={styles.secondaryButton}
           onPress={() => navigation.navigate('StreaksBadges')}
           testID="goals-streaks-badges-button">
-          <Text style={styles.secondaryLabel}>See streaks & badges</Text>
+          <Text style={styles.secondaryLabel}>{t('goals.seeStreaksBadges')}</Text>
           <Text style={styles.secondaryIcon}>{'>'}</Text>
         </Pressable>
       </View>
@@ -311,7 +313,7 @@ export const GoalsScreen = ({ navigation }: Props): React.JSX.Element => {
         style={styles.primaryButton}
         onPress={() => navigation.navigate('MacroPlan')}
         testID="goals-nutrition-plan-button">
-        <Text style={styles.primaryLabel}>Nutrition plan presets</Text>
+        <Text style={styles.primaryLabel}>{t('goals.nutritionPlanPresets')}</Text>
         <View style={styles.primaryIconWrap}>
           <Text style={styles.primaryIcon}>{'->'}</Text>
         </View>
@@ -603,3 +605,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
+
+
+

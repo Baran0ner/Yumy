@@ -1,32 +1,33 @@
-ï»¿import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { colors, spacing, typography } from '../../theme/tokens';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export const WelcomeScreen = ({ navigation }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <ScreenContainer testID="screen-welcome" style={styles.container}>
       <View style={styles.headerWrap}>
-        <Text style={styles.title}>Track calories like writing in Notes.</Text>
-        <Text style={styles.subtitle}>Type what you ate. Amy estimates calories and macros.</Text>
+        <Text style={styles.title}>{t('welcome.title')}</Text>
+        <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
       </View>
 
       <View style={styles.bulletWrap}>
-        <Text style={styles.bullet}>â€¢ Type meals naturally</Text>
-        <Text style={styles.bullet}>â€¢ AI searches nutrition sources</Text>
-        <Text style={styles.bullet}>â€¢ Daily totals update automatically</Text>
+        <Text style={styles.bullet}>{`• ${t('welcome.bullet1')}`}</Text>
+        <Text style={styles.bullet}>{`• ${t('welcome.bullet2')}`}</Text>
+        <Text style={styles.bullet}>{`• ${t('welcome.bullet3')}`}</Text>
       </View>
 
-      <Pressable
-        style={styles.primaryButton}
-        onPress={() => navigation.navigate('SignIn')}
-        testID="welcome-continue-button">
-        <Text style={styles.primaryButtonLabel}>Continue</Text>
-      </Pressable>
+      <AppButton onPress={() => navigation.navigate('SignIn')} testID="welcome-continue-button">
+        {t('common.continue')}
+      </AppButton>
     </ScreenContainer>
   );
 };
@@ -57,18 +58,4 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
-  primaryButton: {
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 52,
-    marginBottom: spacing.md,
-  },
-  primaryButtonLabel: {
-    color: colors.surface,
-    fontWeight: '700',
-    fontSize: 16,
-  },
 });
-

@@ -5,6 +5,34 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (params?.count != null) {
+        return `${params.count} day streak`;
+      }
+
+      return key;
+    },
+    i18n: {
+      language: 'en',
+      changeLanguage: jest.fn(async () => undefined),
+    },
+  }),
+  initReactI18next: { type: '3rdParty', init: jest.fn() },
+}));
+
+jest.mock('i18next', () => ({
+  __esModule: true,
+  default: {
+    isInitialized: true,
+    language: 'en',
+    use: jest.fn().mockReturnThis(),
+    init: jest.fn(async () => undefined),
+    changeLanguage: jest.fn(async () => undefined),
+  },
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
@@ -45,6 +73,20 @@ jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(async () => ({ didCancel: true })),
 }));
 
+jest.mock('@react-native-voice/voice', () => ({
+  __esModule: true,
+  default: {
+    start: jest.fn(async () => undefined),
+    stop: jest.fn(async () => undefined),
+    destroy: jest.fn(async () => undefined),
+    removeAllListeners: jest.fn(),
+    onSpeechStart: undefined,
+    onSpeechEnd: undefined,
+    onSpeechError: undefined,
+    onSpeechResults: undefined,
+  },
+}));
+
 jest.mock('@react-native-firebase/auth', () => {
   const authModule = () => ({
     onAuthStateChanged: (callback: (value: unknown) => void) => {
@@ -53,6 +95,7 @@ jest.mock('@react-native-firebase/auth', () => {
     },
     signInWithCredential: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
+    signInAnonymously: jest.fn(async () => undefined),
   });
 
   authModule.GoogleAuthProvider = {
@@ -88,11 +131,11 @@ jest.mock('@react-native-firebase/firestore', () => {
 
   const createDocRef = (): any => {
     const docRef: any = {
-      get: jest.fn(async () => ({ exists: () => false, data: () => ({}) })),
+      get: jest.fn(async () => ({ exists: false, data: () => ({}) })),
       set: jest.fn(async () => undefined),
       delete: jest.fn(async () => undefined),
       onSnapshot: jest.fn((onNext: (value: any) => void) => {
-        onNext({ exists: () => false, data: () => undefined, id: 'mock' });
+        onNext({ exists: false, data: () => undefined, id: 'mock' });
         return () => undefined;
       }),
       collection: jest.fn(() => createCollectionRef()),
@@ -228,4 +271,3 @@ test('renders correctly', async () => {
     ReactTestRenderer.create(<App />);
   });
 });
-

@@ -1,7 +1,9 @@
-﻿import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import * as Animatable from 'react-native-animatable';
 import type { JournalEntry } from '../../types/firestore';
-import { colors, elevation, radius, spacing } from '../../theme/tokens';
+import { colors, spacing } from '../../theme/tokens';
+import { AppCard } from './AppCard';
 
 type EntryListRowProps = {
   entry: JournalEntry;
@@ -18,39 +20,39 @@ export const EntryListRow = ({ entry, onPress, testID }: EntryListRowProps) => {
         : `${entry.nutrition.calories} kcal`;
 
   return (
-    <Pressable
-      style={styles.row}
-      onPress={() => onPress(entry)}
-      testID={testID ?? `entry-row-${entry.id}`}>
-      <View style={styles.leftColumn}>
-        <Text style={styles.mealText} numberOfLines={3}>
-          {entry.mealText}
-        </Text>
-      </View>
+    <Animatable.View animation="fadeInUp" duration={340} useNativeDriver>
+      <AppCard
+        onPress={() => onPress(entry)}
+        testID={testID ?? `entry-row-${entry.id}`}
+        style={styles.card}
+        contentStyle={styles.row}>
+        <View style={styles.leftColumn}>
+          <Text style={styles.mealText} numberOfLines={3}>
+            {entry.mealText}
+          </Text>
+        </View>
 
-      <View style={styles.rightColumn}>
-        <Text style={styles.calorieText}>{caloriesLabel}</Text>
-        {entry.ai.sourcesCount > 0 ? (
-          <Text style={styles.sourceLabel}>{`${entry.ai.sourcesCount} sources`}</Text>
-        ) : null}
-      </View>
-    </Pressable>
+        <View style={styles.rightColumn}>
+          <Text style={styles.calorieText}>{caloriesLabel}</Text>
+          {entry.ai.sourcesCount > 0 ? (
+            <Text style={styles.sourceLabel}>{`${entry.ai.sourcesCount} sources`}</Text>
+          ) : null}
+        </View>
+      </AppCard>
+    </Animatable.View>
   );
 };
 
 const styles = StyleSheet.create({
+  card: {
+    marginBottom: spacing.sm,
+  },
   row: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginBottom: spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    ...elevation.card,
   },
   leftColumn: {
     flex: 1,
@@ -78,4 +80,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-

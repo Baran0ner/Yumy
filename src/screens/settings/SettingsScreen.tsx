@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import type { SettingsStackParamList } from '../../navigation/types';
@@ -11,31 +12,38 @@ import { colors, spacing } from '../../theme/tokens';
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Settings'>;
 
 export const SettingsScreen = ({ navigation }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const { setLocationForRestaurants } = useUserSettingsActions(user?.uid ?? null);
 
   return (
     <ScreenContainer testID="screen-settings" style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>{t('settings.title')}</Text>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Daily Nutrition Goals</Text>
+          <Text style={styles.sectionTitle}>{t('settings.sections.nutritionGoals')}</Text>
           <SettingsRow
-            title="Calorie Estimate Bias"
+            title={t('settings.aiBias')}
             subtitle={userDoc?.settings.calorieBias ?? 'neutral'}
             onPress={() => navigation.navigate('AISettings')}
             testID="settings-ai-settings-row"
           />
           <SettingsRow
-            title="Location for Restaurants"
-            subtitle="City/region context"
+            title={t('settings.language')}
+            subtitle={t('settings.languageSubtitle')}
+            onPress={() => navigation.navigate('Language')}
+            testID="settings-language-row"
+          />
+          <SettingsRow
+            title={t('settings.locationForRestaurants')}
+            subtitle={t('settings.locationCityRegion')}
             onPress={() => navigation.navigate('LocationRestaurants')}
             testID="settings-location-screen-row"
           />
           <SettingsRow
-            title="Use Location for Restaurants"
-            subtitle="Only city/region sent"
+            title={t('settings.useLocationForRestaurants')}
+            subtitle={t('settings.locationOnlyCity')}
             toggleValue={userDoc?.settings.useLocationForRestaurants ?? false}
             onToggle={value => setLocationForRestaurants(value).catch(() => undefined)}
             testID="settings-location-toggle"
@@ -43,50 +51,50 @@ export const SettingsScreen = ({ navigation }: Props): React.JSX.Element => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Daily Tracking Reminders</Text>
+          <Text style={styles.sectionTitle}>{t('settings.sections.reminders')}</Text>
           <SettingsRow
-            title="Reminders"
-            subtitle={`${userDoc?.settings.remindersFrequency ?? 3} times per day`}
+            title={t('settings.reminders')}
+            subtitle={t('settings.timesPerDay', { count: userDoc?.settings.remindersFrequency ?? 3 })}
             onPress={() => navigation.navigate('Reminders')}
             testID="settings-reminders-row"
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Device Settings</Text>
+          <Text style={styles.sectionTitle}>{t('settings.sections.device')}</Text>
           <SettingsRow
-            title="Units"
+            title={t('settings.units')}
             subtitle={userDoc?.settings.units ?? 'metric'}
             onPress={() => navigation.navigate('Units')}
             testID="settings-units-row"
           />
           <SettingsRow
-            title="Health Sync"
-            subtitle={userDoc?.settings.healthSyncEnabled ? 'Enabled' : 'Disabled'}
+            title={t('settings.healthSync')}
+            subtitle={userDoc?.settings.healthSyncEnabled ? t('settings.enabled') : t('settings.disabled')}
             onPress={() => navigation.navigate('HealthSync')}
             testID="settings-health-sync-row"
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionTitle}>{t('settings.sections.account')}</Text>
           <SettingsRow
-            title="Saved Meals"
+            title={t('settings.savedMeals')}
             onPress={() => navigation.navigate('SavedMeals')}
             testID="settings-saved-meals-row"
           />
           <SettingsRow
-            title="Account & Subscription"
+            title={t('settings.accountSubscription')}
             onPress={() => navigation.navigate('AccountSubscription')}
             testID="settings-account-row"
           />
           <SettingsRow
-            title="Privacy / Terms"
+            title={t('settings.privacyTerms')}
             onPress={() => navigation.navigate('PrivacyTerms')}
             testID="settings-privacy-row"
           />
           <SettingsRow
-            title="Support"
+            title={t('settings.support')}
             onPress={() => navigation.navigate('Support')}
             testID="settings-support-row"
           />
@@ -120,4 +128,3 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 });
-

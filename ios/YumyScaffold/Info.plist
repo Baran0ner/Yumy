@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -43,6 +43,12 @@
 	<string>This app does not use tracking for ads. This permission may be requested by third-party SDK defaults.</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>Notifications are used for daily meal logging reminders.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone access is used to convert your meal voice notes into text.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition is used to transcribe your meal notes for logging.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera is used to scan meal barcodes and capture food photos.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
@@ -69,3 +75,4 @@
 	<false/>
 </dict>
 </plist>
+

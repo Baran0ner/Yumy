@@ -6,7 +6,9 @@ import {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { applyPreferredLanguage } from '../i18n';
 import type {
   AppTabsParamList,
   AuthStackParamList,
@@ -26,6 +28,7 @@ import { AddEntryModalScreen } from '../screens/today/AddEntryModalScreen';
 import { EntryDetailScreen } from '../screens/today/EntryDetailScreen';
 import { EditEntryScreen } from '../screens/today/EditEntryScreen';
 import { PhotoCaptureScreen } from '../screens/today/PhotoCaptureScreen';
+import { BarcodeScanScreen } from '../screens/today/BarcodeScanScreen';
 import { HistoryScreen } from '../screens/history/HistoryScreen';
 import { DayDetailScreen } from '../screens/history/DayDetailScreen';
 import { GoalsScreen } from '../screens/goals/GoalsScreen';
@@ -36,6 +39,7 @@ import { RemindersScreen } from '../screens/settings/RemindersScreen';
 import { AISettingsScreen } from '../screens/settings/AISettingsScreen';
 import { HealthSyncScreen } from '../screens/settings/HealthSyncScreen';
 import { UnitsScreen } from '../screens/settings/UnitsScreen';
+import { LanguageScreen } from '../screens/settings/LanguageScreen';
 import { LocationRestaurantsScreen } from '../screens/settings/LocationRestaurantsScreen';
 import { SavedMealsScreen } from '../screens/settings/SavedMealsScreen';
 import { AccountSubscriptionScreen } from '../screens/settings/AccountSubscriptionScreen';
@@ -68,156 +72,183 @@ const TabIcon = ({ icon, color }: TabIconProps): React.JSX.Element => {
   return <Text style={[styles.tabIcon, { color }]}>{icon}</Text>;
 };
 
-const renderTodayTabIcon = ({ color }: { color: string }) => <TabIcon icon="◷" color={color} />;
-const renderHistoryTabIcon = ({ color }: { color: string }) => <TabIcon icon="↺" color={color} />;
-const renderGoalsTabIcon = ({ color }: { color: string }) => <TabIcon icon="◎" color={color} />;
-const renderSettingsTabIcon = ({ color }: { color: string }) => <TabIcon icon="⚙" color={color} />;
+const renderTodayTabIcon = ({ color }: { color: string }) => <TabIcon icon={'\u25E6'} color={color} />;
+const renderHistoryTabIcon = ({ color }: { color: string }) => <TabIcon icon={'\u21BA'} color={color} />;
+const renderGoalsTabIcon = ({ color }: { color: string }) => <TabIcon icon={'\u25CE'} color={color} />;
+const renderSettingsTabIcon = ({ color }: { color: string }) => <TabIcon icon={'\u2699'} color={color} />;
 
-const AuthStackNavigator = () => (
-  <AuthStack.Navigator
-    initialRouteName="Welcome"
-    screenOptions={{
-      ...commonStackScreenOptions,
-    }}>
-    <AuthStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
-    <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: 'Sign In' }} />
-  </AuthStack.Navigator>
-);
+const AuthStackNavigator = () => {
+  const { t } = useTranslation();
 
-const TodayStackNavigator = () => (
-  <TodayStack.Navigator
-    initialRouteName="Today"
-    screenOptions={{
-      ...commonStackScreenOptions,
-    }}>
-    <TodayStack.Screen name="Today" component={TodayScreen} options={{ headerShown: false }} />
-    <TodayStack.Screen
-      name="AddEntryModal"
-      component={AddEntryModalScreen}
-      options={{ presentation: 'transparentModal', headerShown: false }}
-    />
-    <TodayStack.Screen
-      name="EntryDetail"
-      component={EntryDetailScreen}
-      options={{ presentation: 'modal', headerShown: false }}
-    />
-    <TodayStack.Screen name="EditEntry" component={EditEntryScreen} options={{ title: 'Edit Entry' }} />
-    <TodayStack.Screen name="PhotoCapture" component={PhotoCaptureScreen} options={{ title: 'Photo' }} />
-  </TodayStack.Navigator>
-);
+  return (
+    <AuthStack.Navigator
+      initialRouteName="Welcome"
+      screenOptions={{
+        ...commonStackScreenOptions,
+      }}>
+      <AuthStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+      <AuthStack.Screen name="SignIn" component={SignInScreen} options={{ title: t('common.signIn') }} />
+    </AuthStack.Navigator>
+  );
+};
 
-const HistoryStackNavigator = () => (
-  <HistoryStack.Navigator
-    initialRouteName="History"
-    screenOptions={{
-      ...commonStackScreenOptions,
-    }}>
-    <HistoryStack.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
-    <HistoryStack.Screen name="DayDetail" component={DayDetailScreen} options={{ title: 'Day Detail' }} />
-  </HistoryStack.Navigator>
-);
+const TodayStackNavigator = () => {
+  const { t } = useTranslation();
 
-const GoalsStackNavigator = () => (
-  <GoalsStack.Navigator
-    initialRouteName="Goals"
-    screenOptions={{
-      ...commonStackScreenOptions,
-    }}>
-    <GoalsStack.Screen name="Goals" component={GoalsScreen} options={{ headerShown: false }} />
-    <GoalsStack.Screen name="MacroPlan" component={MacroPlanScreen} options={{ title: 'Nutrition Plan' }} />
-    <GoalsStack.Screen
-      name="StreaksBadges"
-      component={StreaksBadgesScreen}
-      options={{ title: 'Streaks & Badges' }}
-    />
-  </GoalsStack.Navigator>
-);
+  return (
+    <TodayStack.Navigator
+      initialRouteName="Today"
+      screenOptions={{
+        ...commonStackScreenOptions,
+      }}>
+      <TodayStack.Screen name="Today" component={TodayScreen} options={{ headerShown: false }} />
+      <TodayStack.Screen
+        name="AddEntryModal"
+        component={AddEntryModalScreen}
+        options={{ presentation: 'transparentModal', headerShown: false }}
+      />
+      <TodayStack.Screen
+        name="EntryDetail"
+        component={EntryDetailScreen}
+        options={{ presentation: 'modal', headerShown: false }}
+      />
+      <TodayStack.Screen name="EditEntry" component={EditEntryScreen} options={{ title: t('nav.editEntry') }} />
+      <TodayStack.Screen name="PhotoCapture" component={PhotoCaptureScreen} options={{ title: t('nav.photo') }} />
+      <TodayStack.Screen name="BarcodeScan" component={BarcodeScanScreen} options={{ title: t('barcode.title') }} />
+    </TodayStack.Navigator>
+  );
+};
 
-const SettingsStackNavigator = () => (
-  <SettingsStack.Navigator
-    initialRouteName="Settings"
-    screenOptions={{
-      ...commonStackScreenOptions,
-    }}>
-    <SettingsStack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
-    <SettingsStack.Screen name="Reminders" component={RemindersScreen} options={{ title: 'Reminders' }} />
-    <SettingsStack.Screen name="AISettings" component={AISettingsScreen} options={{ title: 'AI Settings' }} />
-    <SettingsStack.Screen name="HealthSync" component={HealthSyncScreen} options={{ title: 'Health Sync' }} />
-    <SettingsStack.Screen name="Units" component={UnitsScreen} options={{ title: 'Units' }} />
-    <SettingsStack.Screen
-      name="LocationRestaurants"
-      component={LocationRestaurantsScreen}
-      options={{ title: 'Location' }}
-    />
-    <SettingsStack.Screen name="SavedMeals" component={SavedMealsScreen} options={{ title: 'Saved Meals' }} />
-    <SettingsStack.Screen
-      name="AccountSubscription"
-      component={AccountSubscriptionScreen}
-      options={{ title: 'Account' }}
-    />
-    <SettingsStack.Screen
-      name="PrivacyTerms"
-      component={PrivacyTermsScreen}
-      options={{ title: 'Privacy / Terms' }}
-    />
-    <SettingsStack.Screen name="Support" component={SupportScreen} options={{ title: 'Support' }} />
-  </SettingsStack.Navigator>
-);
+const HistoryStackNavigator = () => {
+  const { t } = useTranslation();
+  return (
+    <HistoryStack.Navigator
+      initialRouteName="History"
+      screenOptions={{
+        ...commonStackScreenOptions,
+      }}>
+      <HistoryStack.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
+      <HistoryStack.Screen name="DayDetail" component={DayDetailScreen} options={{ title: t('nav.dayDetail') }} />
+    </HistoryStack.Navigator>
+  );
+};
 
-const AppTabsNavigator = () => (
-  <Tab.Navigator
-    initialRouteName="TodayTab"
-    screenOptions={{
-      headerShown: false,
-      tabBarActiveTintColor: colors.textPrimary,
-      tabBarInactiveTintColor: colors.textSecondary,
-      tabBarStyle: {
-        backgroundColor: colors.surface,
-        borderTopColor: colors.border,
-      },
-    }}>
-    <Tab.Screen
-      name="TodayTab"
-      component={TodayStackNavigator}
-      options={{
-        tabBarLabel: 'Today',
-        tabBarButtonTestID: 'tab-today',
-        tabBarIcon: renderTodayTabIcon,
-      }}
-    />
-    <Tab.Screen
-      name="HistoryTab"
-      component={HistoryStackNavigator}
-      options={{
-        tabBarLabel: 'History',
-        tabBarButtonTestID: 'tab-history',
-        tabBarIcon: renderHistoryTabIcon,
-      }}
-    />
-    <Tab.Screen
-      name="GoalsTab"
-      component={GoalsStackNavigator}
-      options={{
-        tabBarLabel: 'Goals',
-        tabBarButtonTestID: 'tab-goals',
-        tabBarIcon: renderGoalsTabIcon,
-      }}
-    />
-    <Tab.Screen
-      name="SettingsTab"
-      component={SettingsStackNavigator}
-      options={{
-        tabBarLabel: 'Settings',
-        tabBarButtonTestID: 'tab-settings',
-        tabBarIcon: renderSettingsTabIcon,
-      }}
-    />
-  </Tab.Navigator>
-);
+const GoalsStackNavigator = () => {
+  const { t } = useTranslation();
+  return (
+    <GoalsStack.Navigator
+      initialRouteName="Goals"
+      screenOptions={{
+        ...commonStackScreenOptions,
+      }}>
+      <GoalsStack.Screen name="Goals" component={GoalsScreen} options={{ headerShown: false }} />
+      <GoalsStack.Screen name="MacroPlan" component={MacroPlanScreen} options={{ title: t('nav.nutritionPlan') }} />
+      <GoalsStack.Screen
+        name="StreaksBadges"
+        component={StreaksBadgesScreen}
+        options={{ title: t('streaks.title') }}
+      />
+    </GoalsStack.Navigator>
+  );
+};
+
+const SettingsStackNavigator = () => {
+  const { t } = useTranslation();
+  return (
+    <SettingsStack.Navigator
+      initialRouteName="Settings"
+      screenOptions={{
+        ...commonStackScreenOptions,
+      }}>
+      <SettingsStack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+      <SettingsStack.Screen name="Reminders" component={RemindersScreen} options={{ title: t('nav.reminders') }} />
+      <SettingsStack.Screen name="AISettings" component={AISettingsScreen} options={{ title: t('nav.aiSettings') }} />
+      <SettingsStack.Screen name="HealthSync" component={HealthSyncScreen} options={{ title: t('nav.healthSync') }} />
+      <SettingsStack.Screen name="Units" component={UnitsScreen} options={{ title: t('nav.units') }} />
+      <SettingsStack.Screen name="Language" component={LanguageScreen} options={{ title: t('language.title') }} />
+      <SettingsStack.Screen
+        name="LocationRestaurants"
+        component={LocationRestaurantsScreen}
+        options={{ title: t('nav.location') }}
+      />
+      <SettingsStack.Screen name="SavedMeals" component={SavedMealsScreen} options={{ title: t('nav.savedMeals') }} />
+      <SettingsStack.Screen
+        name="AccountSubscription"
+        component={AccountSubscriptionScreen}
+        options={{ title: t('nav.account') }}
+      />
+      <SettingsStack.Screen
+        name="PrivacyTerms"
+        component={PrivacyTermsScreen}
+        options={{ title: t('nav.privacyTerms') }}
+      />
+      <SettingsStack.Screen name="Support" component={SupportScreen} options={{ title: t('nav.support') }} />
+    </SettingsStack.Navigator>
+  );
+};
+
+const AppTabsNavigator = () => {
+  const { t } = useTranslation();
+
+  return (
+    <Tab.Navigator
+      initialRouteName="TodayTab"
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.textPrimary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+        },
+      }}>
+      <Tab.Screen
+        name="TodayTab"
+        component={TodayStackNavigator}
+        options={{
+          tabBarLabel: t('common.today'),
+          tabBarButtonTestID: 'tab-today',
+          tabBarIcon: renderTodayTabIcon,
+        }}
+      />
+      <Tab.Screen
+        name="HistoryTab"
+        component={HistoryStackNavigator}
+        options={{
+          tabBarLabel: t('common.history'),
+          tabBarButtonTestID: 'tab-history',
+          tabBarIcon: renderHistoryTabIcon,
+        }}
+      />
+      <Tab.Screen
+        name="GoalsTab"
+        component={GoalsStackNavigator}
+        options={{
+          tabBarLabel: t('common.goals'),
+          tabBarButtonTestID: 'tab-goals',
+          tabBarIcon: renderGoalsTabIcon,
+        }}
+      />
+      <Tab.Screen
+        name="SettingsTab"
+        component={SettingsStackNavigator}
+        options={{
+          tabBarLabel: t('common.settings'),
+          tabBarButtonTestID: 'tab-settings',
+          tabBarIcon: renderSettingsTabIcon,
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
 
 export const AppNavigator = (): React.JSX.Element => {
-  const { isAuthenticated, isInitializing, shouldShowPaywall } = useAuth();
+  const { isAuthenticated, isInitializing, shouldShowPaywall, userDoc } = useAuth();
   const [isNavigationReady, setIsNavigationReady] = React.useState<boolean>(false);
+
+  useEffect(() => {
+    applyPreferredLanguage(userDoc?.settings.language).catch(() => undefined);
+  }, [userDoc?.settings.language]);
 
   useEffect(() => {
     if (!isNavigationReady || !rootNavigationRef.isReady()) {
@@ -261,7 +292,7 @@ export const AppNavigator = (): React.JSX.Element => {
         <RootStack.Screen
           name="PaywallModal"
           component={PaywallModalScreen}
-          options={{ presentation: 'modal' }}
+          options={{ presentation: 'modal', gestureEnabled: false }}
         />
       </RootStack.Navigator>
     </NavigationContainer>
@@ -274,4 +305,3 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 });
-

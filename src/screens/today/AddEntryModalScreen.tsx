@@ -1,6 +1,7 @@
-﻿import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import type { TodayStackParamList } from '../../navigation/types';
 import { analyzeMealText } from '../../services/functionsService';
@@ -9,23 +10,26 @@ import {
   createProcessingEntry,
   markEntryAsError,
 } from '../../services/journalService';
+import { AppButton } from '../../components/common/AppButton';
+import { AppInput } from '../../components/common/AppInput';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<TodayStackParamList, 'AddEntryModal'>;
 
 export const AddEntryModalScreen = ({ navigation, route }: Props): React.JSX.Element => {
-  const { user, userDoc } = useAuth();
+  const { t } = useTranslation();
+  const { user, userDoc, canLogMeals, startGuestTrialIfNeeded } = useAuth();
   const [mealText, setMealText] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const tooLongHint = useMemo(() => {
     if (mealText.trim().length > 280) {
-      return 'Tip: Split into separate lines for better estimates.';
+      return t('addEntry.longHint');
     }
 
     return null;
-  }, [mealText]);
+  }, [mealText, t]);
 
   const submit = async () => {
     const value = mealText.trim();
@@ -34,8 +38,13 @@ export const AddEntryModalScreen = ({ navigation, route }: Props): React.JSX.Ele
       return;
     }
 
+    if (!canLogMeals) {
+      setValidationError(t('today.quickAddBlocked'));
+      return;
+    }
+
     if (value.length < 3) {
-      setValidationError('Please enter at least 3 characters.');
+      setValidationError(t('today.typeThreeChars'));
       return;
     }
 
@@ -65,8 +74,9 @@ export const AddEntryModalScreen = ({ navigation, route }: Props): React.JSX.Ele
       });
 
       await applyAnalysisResultToEntry(user.uid, dateKey, entryId, analysis);
+      await startGuestTrialIfNeeded();
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'Could not estimate nutrition.';
+      const reason = error instanceof Error ? error.message : t('addEntry.estimateFailed');
       await markEntryAsError(user.uid, dateKey, entryId, reason);
     } finally {
       setIsSubmitting(false);
@@ -76,14 +86,14 @@ export const AddEntryModalScreen = ({ navigation, route }: Props): React.JSX.Ele
   return (
     <View style={styles.overlay} testID="screen-add-entry-modal">
       <View style={styles.sheet}>
-        <Text style={styles.title}>Add entry</Text>
+        <Text style={styles.title}>{t('addEntry.title')}</Text>
 
-        <TextInput
+        <AppInput
           value={mealText}
           onChangeText={setMealText}
-          placeholder="Type what you ate..."
-          placeholderTextColor={colors.textSecondary}
+          placeholder={t('addEntry.placeholder')}
           style={styles.input}
+          contentStyle={styles.inputContent}
           multiline
           testID="add-entry-input"
         />
@@ -91,28 +101,41 @@ export const AddEntryModalScreen = ({ navigation, route }: Props): React.JSX.Ele
         {validationError ? <Text style={styles.error}>{validationError}</Text> : null}
         {tooLongHint ? <Text style={styles.hint}>{tooLongHint}</Text> : null}
 
-        <Pressable
-          style={styles.photoButton}
+        <AppButton
+          variant="outline"
           onPress={() =>
             navigation.replace('PhotoCapture', {
               dateKey: route.params.dateKey,
             })
           }
           testID="add-entry-photo-button">
-          <Text style={styles.photoButtonLabel}>Add photo</Text>
-        </Pressable>
+          {t('addEntry.addPhoto')}
+        </AppButton>
 
-        <Pressable
-          style={[styles.logButton, isSubmitting && styles.logButtonDisabled]}
+        <AppButton
+          variant="outline"
+          onPress={() =>
+            navigation.replace('BarcodeScan', {
+              dateKey: route.params.dateKey,
+            })
+          }
+          testID="add-entry-barcode-button">
+          {t('addEntry.scanBarcode')}
+        </AppButton>
+
+        <AppButton
           onPress={() => submit().catch(() => undefined)}
           disabled={isSubmitting}
           testID="add-entry-log-button">
-          <Text style={styles.logButtonLabel}>{isSubmitting ? 'Logging...' : 'Log'}</Text>
-        </Pressable>
+          {isSubmitting ? t('addEntry.logging') : t('addEntry.log')}
+        </AppButton>
 
-        <Pressable style={styles.cancelButton} onPress={() => navigation.goBack()} testID="add-entry-cancel-button">
-          <Text style={styles.cancelButtonLabel}>Cancel</Text>
-        </Pressable>
+        <AppButton
+          variant="text"
+          onPress={() => navigation.goBack()}
+          testID="add-entry-cancel-button">
+          {t('common.cancel')}
+        </AppButton>
       </View>
     </View>
   );
@@ -133,6 +156,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
+    gap: spacing.sm,
   },
   title: {
     ...typography.title,
@@ -142,13 +166,9 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 120,
     maxHeight: 210,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  },
+  inputContent: {
     textAlignVertical: 'top',
-    color: colors.textPrimary,
     fontSize: 16,
   },
   error: {
@@ -161,48 +181,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
   },
-  photoButton: {
-    marginTop: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 44,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  photoButtonLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  logButton: {
-    marginTop: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-  },
-  logButtonDisabled: {
-    opacity: 0.6,
-  },
-  logButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cancelButton: {
-    marginTop: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 42,
-  },
-  cancelButtonLabel: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
 });
-
-

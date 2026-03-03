@@ -1,32 +1,35 @@
-﻿import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useUserSettingsActions } from '../../hooks/useUserSettingsActions';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
+import { AppCard } from '../../components/common/AppCard';
 import type { Units } from '../../types/firestore';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { colors, spacing } from '../../theme/tokens';
 
-const options: Array<{ label: string; value: Units }> = [
-  { label: 'Metric', value: 'metric' },
-  { label: 'Imperial', value: 'imperial' },
+const options: Array<{ labelKey: string; value: Units }> = [
+  { labelKey: 'metric', value: 'metric' },
+  { labelKey: 'imperial', value: 'imperial' },
 ];
 
 export const UnitsScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user, userDoc } = useAuth();
   const { setUnits } = useUserSettingsActions(user?.uid ?? null);
   const current = userDoc?.settings.units ?? 'metric';
 
   return (
     <ScreenContainer testID="screen-units" style={styles.container}>
-      <Text style={styles.title}>Units</Text>
+      <Text style={styles.title}>{t('units.title')}</Text>
       {options.map(option => (
-        <Pressable
+        <AppCard
           key={option.value}
-          style={[styles.option, current === option.value && styles.optionActive]}
           onPress={() => setUnits(option.value).catch(() => undefined)}
+          style={[styles.option, current === option.value && styles.optionActive]}
           testID={`units-option-${option.value}`}>
-          <Text style={styles.label}>{option.label}</Text>
-        </Pressable>
+          <Text style={styles.label}>{t(`units.${option.labelKey}`)}</Text>
+        </AppCard>
       ))}
     </ScreenContainer>
   );
@@ -44,11 +47,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   option: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
+    marginBottom: spacing.xs,
   },
   optionActive: {
     backgroundColor: '#FFF1E4',
@@ -60,4 +59,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-

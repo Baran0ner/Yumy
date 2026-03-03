@@ -1,6 +1,8 @@
-﻿import React from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { colors, elevation, radius, spacing } from '../../theme/tokens';
+import React from 'react';
+import { StyleSheet, Switch, Text, View } from 'react-native';
+import * as Animatable from 'react-native-animatable';
+import { colors, spacing } from '../../theme/tokens';
+import { AppCard } from './AppCard';
 
 type SettingsRowProps = {
   title: string;
@@ -19,44 +21,33 @@ export const SettingsRow = ({
   onToggle,
   testID,
 }: SettingsRowProps) => {
-  const content = (
-    <View style={styles.row}>
-      <View style={styles.textWrap}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      </View>
-      {typeof toggleValue === 'boolean' ? (
-        <Switch value={toggleValue} onValueChange={onToggle} />
-      ) : (
-        <Text style={styles.chevron}>›</Text>
-      )}
-    </View>
+  return (
+    <Animatable.View animation="fadeInUp" duration={320} useNativeDriver>
+      <AppCard onPress={onPress} testID={testID} style={styles.card} contentStyle={styles.row}>
+        <View style={styles.textWrap}>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
+        {typeof toggleValue === 'boolean' ? (
+          <Switch value={toggleValue} onValueChange={onToggle} />
+        ) : (
+          <Text style={styles.chevron}>�</Text>
+        )}
+      </AppCard>
+    </Animatable.View>
   );
-
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} testID={testID}>
-        {content}
-      </Pressable>
-    );
-  }
-
-  return <View testID={testID}>{content}</View>;
 };
 
 const styles = StyleSheet.create({
+  card: {
+    marginBottom: spacing.sm,
+  },
   row: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-    ...elevation.card,
   },
   textWrap: {
     flex: 1,
@@ -74,9 +65,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   chevron: {
-    color: colors.textSecondary,
-    fontSize: 24,
-    lineHeight: 24,
+    color: '#9A9388',
+    fontSize: 22,
+    lineHeight: 22,
   },
 });
-

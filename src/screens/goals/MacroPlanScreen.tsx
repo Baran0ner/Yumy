@@ -1,11 +1,13 @@
-﻿import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../context/AuthContext';
 import { useUserSettingsActions } from '../../hooks/useUserSettingsActions';
 import type { GoalsStackParamList } from '../../navigation/types';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 type Props = NativeStackScreenProps<GoalsStackParamList, 'MacroPlan'>;
 
@@ -16,6 +18,7 @@ const plans = {
 };
 
 export const MacroPlanScreen = ({ navigation }: Props): React.JSX.Element => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { setMacroTargets } = useUserSettingsActions(user?.uid ?? null);
 
@@ -26,22 +29,25 @@ export const MacroPlanScreen = ({ navigation }: Props): React.JSX.Element => {
 
   return (
     <ScreenContainer testID="screen-macro-plan" style={styles.container}>
-      <Text style={styles.title}>Nutrition plan</Text>
+      <Text style={styles.title}>{t('macroPlan.title')}</Text>
 
-      <Pressable style={styles.card} onPress={() => applyPlan('cut').catch(() => undefined)} testID="macro-plan-cut">
-        <Text style={styles.cardTitle}>Cut</Text>
-        <Text style={styles.cardBody}>Lower calories, high protein.</Text>
-      </Pressable>
+      <AppCard style={styles.card} onPress={() => applyPlan('cut').catch(() => undefined)} testID="macro-plan-cut">
+        <Text style={styles.cardTitle}>{t('macroPlan.cut')}</Text>
+        <Text style={styles.cardBody}>{t('macroPlan.cutDesc')}</Text>
+      </AppCard>
 
-      <Pressable style={styles.card} onPress={() => applyPlan('maintain').catch(() => undefined)} testID="macro-plan-maintain">
-        <Text style={styles.cardTitle}>Maintain</Text>
-        <Text style={styles.cardBody}>Balanced calorie and macro targets.</Text>
-      </Pressable>
+      <AppCard
+        style={styles.card}
+        onPress={() => applyPlan('maintain').catch(() => undefined)}
+        testID="macro-plan-maintain">
+        <Text style={styles.cardTitle}>{t('macroPlan.maintain')}</Text>
+        <Text style={styles.cardBody}>{t('macroPlan.maintainDesc')}</Text>
+      </AppCard>
 
-      <Pressable style={styles.card} onPress={() => applyPlan('bulk').catch(() => undefined)} testID="macro-plan-bulk">
-        <Text style={styles.cardTitle}>Bulk</Text>
-        <Text style={styles.cardBody}>Higher calories with increased carbs.</Text>
-      </Pressable>
+      <AppCard style={styles.card} onPress={() => applyPlan('bulk').catch(() => undefined)} testID="macro-plan-bulk">
+        <Text style={styles.cardTitle}>{t('macroPlan.bulk')}</Text>
+        <Text style={styles.cardBody}>{t('macroPlan.bulkDesc')}</Text>
+      </AppCard>
     </ScreenContainer>
   );
 };
@@ -58,11 +64,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
+    marginBottom: spacing.xs,
   },
   cardTitle: {
     color: colors.textPrimary,
@@ -75,5 +77,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
-

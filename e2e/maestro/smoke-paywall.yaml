@@ -1,0 +1,16 @@
+﻿appId: com.subsetapp.yummy
+name: Yumy Smoke Paywall Gate
+---
+- launchApp:
+    clearState: false
+- assertVisible:
+    id: "screen-today"
+- tapOn:
+    id: "today-inline-input"
+- inputText: "omelette"
+- tapOn:
+    id: "today-quick-add-button"
+- assertVisible:
+    id: "screen-paywall"
+- assertVisible:
+    id: "paywall-signin-button"

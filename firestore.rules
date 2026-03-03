@@ -5,18 +5,50 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function isAnonymous() {
+      return request.auth != null
+        && request.auth.token.firebase != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function trialSettingsUnchanged() {
+      return request.resource.data.settings.guestTrialStartedAt == resource.data.settings.guestTrialStartedAt
+        && request.resource.data.settings.guestTrialExpiresAt == resource.data.settings.guestTrialExpiresAt
+        && request.resource.data.settings.guestTrialConsumed == resource.data.settings.guestTrialConsumed;
+    }
+
+    function hasActiveGuestTrial(uid) {
+      let userDoc = get(/databases/$(database)/documents/users/$(uid)).data;
+      return userDoc.settings.guestTrialExpiresAt is string
+        && request.time < timestamp.value(userDoc.settings.guestTrialExpiresAt);
+    }
+
+    function canWriteMealData(uid) {
+      return isOwner(uid) && (!isAnonymous() || hasActiveGuestTrial(uid));
+    }
+
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && (!isAnonymous() || (request.resource.data.settings.guestTrialStartedAt == null && request.resource.data.settings.guestTrialExpiresAt == null && request.resource.data.settings.guestTrialConsumed == false));
+      allow update: if isOwner(uid) && (!isAnonymous() || trialSettingsUnchanged());
+      allow delete: if isOwner(uid);
 
       match /days/{dateKey} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow write: if canWriteMealData(uid);
 
         match /entries/{entryId} {
-          allow read, write: if isOwner(uid);
+          allow read: if isOwner(uid);
+          allow write: if canWriteMealData(uid);
         }
       }
 
       match /savedMeals/{mealId} {
+        allow read: if isOwner(uid);
+        allow write: if canWriteMealData(uid);
+      }
+
+      match /analyticsEvents/{eventId} {
         allow read, write: if isOwner(uid);
       }
     }

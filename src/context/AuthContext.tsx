@@ -1,4 +1,4 @@
-﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import auth, { type FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { appleAuth } from '@invertase/react-native-apple-authentication';
@@ -17,7 +17,14 @@ import {
   type PaywallPlanOption,
   type RevenueCatPlan,
 } from '../services/revenueCatService';
-import { ensureUserDocument, subscribeToUserDocument, updateUserSubscription } from '../services/userService';
+import {
+  ensureUserDocument,
+  subscribeToUserDocument,
+  updateUserSubscription,
+} from '../services/userService';
+import { getGuestTrialStatus } from '../services/guestTrialService';
+import { startGuestTrial as startGuestTrialCallable } from '../services/functionsService';
+import { logKpiEvent } from '../services/analyticsService';
 import type { UserDoc } from '../types/firestore';
 
 type AuthContextValue = {
@@ -27,11 +34,15 @@ type AuthContextValue = {
   authError: string | null;
   isAuthenticated: boolean;
   shouldShowPaywall: boolean;
+  canLogMeals: boolean;
+  guestTrialExpiresAt: string | null;
   paywallPlans: PaywallPlanOption[];
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   continueAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
+  forceSignInFromGuest: () => Promise<void>;
+  startGuestTrialIfNeeded: () => Promise<void>;
   startTrial: (plan: RevenueCatPlan) => Promise<void>;
   restoreSubscription: () => Promise<void>;
   refreshPaywallPlans: () => Promise<void>;
@@ -59,15 +70,15 @@ const getErrorMessage = (error: unknown): string => {
   const authCode = (error as FirebaseErrorLike)?.code;
 
   if (authCode === 'auth/admin-restricted-operation') {
-    return 'Bu giriş yöntemi Firebase tarafında kısıtlı. Firebase Console > Authentication > Sign-in method ekranında ilgili providerı (Anonymous/Google/Apple) etkinleştirin.';
+    return 'Bu giris yontemi Firebase tarafinda kisitli. Firebase Console > Authentication > Sign-in method ekraninda ilgili provideri etkinlestirin.';
   }
 
   if (authCode === 'auth/operation-not-allowed') {
-    return 'Bu giriş yöntemi etkin değil. Firebase Console > Authentication > Sign-in method bölümünden açın.';
+    return 'Bu giris yontemi etkin degil. Firebase Console > Authentication > Sign-in method bolumunden acin.';
   }
 
   if (authCode === 'auth/invalid-credential') {
-    return 'Geçersiz kimlik bilgisi. Provider ayarlarını ve SHA/Web client ID değerlerini kontrol edin.';
+    return 'Gecersiz kimlik bilgisi. Provider ayarlarini ve SHA/Web client ID degerlerini kontrol edin.';
   }
 
   if (error instanceof Error && error.message) {
@@ -90,6 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
   const unsubscribeUserDocRef = useRef<(() => void) | null>(null);
   const revenueCatListenerRef = useRef<((info: CustomerInfo) => void) | null>(null);
   const initTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trialExpiryLoggedAtRef = useRef<string | null>(null);
 
   const clearInitTimeout = useCallback(() => {
     if (!initTimeoutRef.current) {
@@ -132,6 +144,42 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       setPaywallPlans(fallbackPlans);
     }
   }, [user]);
+
+  const startGuestTrialIfNeeded = useCallback(async () => {
+    if (!user || !user.isAnonymous || !userDoc) {
+      return;
+    }
+
+    const currentStatus = getGuestTrialStatus(userDoc.settings);
+
+    if (currentStatus.isStarted) {
+      return;
+    }
+    const result = await startGuestTrialCallable();
+
+    setUserDoc(prev => {
+      if (!prev) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          guestTrialStartedAt: result.startedAt,
+          guestTrialExpiresAt: result.expiresAt,
+          guestTrialConsumed: true,
+        },
+      };
+    });
+
+    if (!result.alreadyStarted) {
+      logKpiEvent(user.uid, 'trial_started', {
+        startedAt: result.startedAt,
+        expiresAt: result.expiresAt,
+      }).catch(() => undefined);
+    }
+  }, [user, userDoc]);
 
   useEffect(() => {
     GoogleSignin.configure(
@@ -294,6 +342,14 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
     await auth().signOut();
   }, []);
 
+  const forceSignInFromGuest = useCallback(async () => {
+    if (!user?.isAnonymous) {
+      return;
+    }
+
+    await signOut();
+  }, [signOut, user]);
+
   const startTrial = useCallback(
     async (plan: RevenueCatPlan) => {
       if (!user) {
@@ -351,6 +407,64 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
     await openManageSubscriptions(user.uid);
   }, [user]);
 
+  const guestTrialStatus = useMemo(() => {
+    if (!user?.isAnonymous || !userDoc) {
+      return {
+        startedAt: null,
+        expiresAt: null,
+        isStarted: false,
+        isActive: false,
+        isExpired: false,
+      };
+    }
+
+    return getGuestTrialStatus(userDoc.settings);
+  }, [user, userDoc]);
+
+  useEffect(() => {
+    if (!user?.isAnonymous || !guestTrialStatus.expiresAt) {
+      trialExpiryLoggedAtRef.current = null;
+      return;
+    }
+
+    if (!guestTrialStatus.isExpired) {
+      return;
+    }
+
+    if (trialExpiryLoggedAtRef.current === guestTrialStatus.expiresAt) {
+      return;
+    }
+
+    trialExpiryLoggedAtRef.current = guestTrialStatus.expiresAt;
+    logKpiEvent(user.uid, 'trial_expired', {
+      expiresAt: guestTrialStatus.expiresAt,
+    }).catch(() => undefined);
+  }, [guestTrialStatus.expiresAt, guestTrialStatus.isExpired, user]);
+
+  const shouldShowPaywall = useMemo(() => {
+    if (!user || !userDoc) {
+      return false;
+    }
+
+    if (user.isAnonymous) {
+      return guestTrialStatus.isExpired;
+    }
+
+    return userDoc.subscription.status === 'inactive';
+  }, [user, userDoc, guestTrialStatus]);
+
+  const canLogMeals = useMemo(() => {
+    if (!user || !userDoc) {
+      return false;
+    }
+
+    if (user.isAnonymous) {
+      return !guestTrialStatus.isExpired;
+    }
+
+    return userDoc.subscription.status !== 'inactive';
+  }, [guestTrialStatus, user, userDoc]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -358,14 +472,16 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       isInitializing,
       authError,
       isAuthenticated: Boolean(user),
-      shouldShowPaywall: Boolean(
-        user && !user.isAnonymous && userDoc && userDoc.subscription.status === 'inactive',
-      ),
+      shouldShowPaywall,
+      canLogMeals,
+      guestTrialExpiresAt: guestTrialStatus.expiresAt,
       paywallPlans,
       signInWithGoogle,
       signInWithApple,
       continueAsGuest,
       signOut,
+      forceSignInFromGuest,
+      startGuestTrialIfNeeded,
       startTrial,
       restoreSubscription,
       refreshPaywallPlans,
@@ -376,11 +492,16 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       userDoc,
       isInitializing,
       authError,
+      shouldShowPaywall,
+      canLogMeals,
+      guestTrialStatus.expiresAt,
       paywallPlans,
       signInWithGoogle,
       signInWithApple,
       continueAsGuest,
       signOut,
+      forceSignInFromGuest,
+      startGuestTrialIfNeeded,
       startTrial,
       restoreSubscription,
       refreshPaywallPlans,
@@ -398,4 +519,3 @@ export const useAuth = (): AuthContextValue => {
   }
   return context;
 };
-

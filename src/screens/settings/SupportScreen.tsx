@@ -1,23 +1,27 @@
-﻿import React from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Linking, StyleSheet, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { colors, radius, spacing } from '../../theme/tokens';
+import { AppButton } from '../../components/common/AppButton';
+import { AppCard } from '../../components/common/AppCard';
+import { colors, spacing } from '../../theme/tokens';
 
 export const SupportScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <ScreenContainer testID="screen-support" style={styles.container}>
-      <Text style={styles.title}>Support</Text>
+      <Text style={styles.title}>{t('support.title')}</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Need help?</Text>
-        <Text style={styles.text}>Reach out and include your app version and device model.</Text>
-        <Pressable
-          style={styles.button}
+      <AppCard style={styles.card} contentStyle={styles.cardContent}>
+        <Text style={styles.label}>{t('support.needHelp')}</Text>
+        <Text style={styles.text}>{t('support.body')}</Text>
+        <AppButton
           onPress={() => Linking.openURL('mailto:support@example.com')}
           testID="support-email-button">
-          <Text style={styles.buttonLabel}>Email support@example.com</Text>
-        </Pressable>
-      </View>
+          {t('support.emailButton')}
+        </AppButton>
+      </AppCard>
     </ScreenContainer>
   );
 };
@@ -33,11 +37,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   card: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  cardContent: {
     gap: spacing.sm,
   },
   label: {
@@ -49,17 +51,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
   },
-  button: {
-    marginTop: spacing.sm,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonLabel: {
-    color: colors.surface,
-    fontWeight: '700',
-  },
 });
-
