@@ -20,3 +20,16 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        maven {
+            // AsyncStorage v3 ships its Android artifact in a local Maven repo.
+            url("$rootDir/../node_modules/@react-native-async-storage/async-storage/android/local_repo")
+        }
+    }
+    configurations.all {
+        // Some third-party libs still pull legacy support libraries; exclude them in favor of AndroidX.
+        exclude group: "com.android.support"
+    }
+}

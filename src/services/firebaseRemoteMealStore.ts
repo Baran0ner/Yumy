@@ -11,8 +11,9 @@ const toIsoString = (value: FirestoreMealDoc['createdAt']): string => {
     return value;
   }
 
-  if (value && typeof value === 'object' && typeof value.toDate === 'function') {
-    return value.toDate().toISOString();
+  const timestampLike = value as { toDate?: () => Date } | undefined;
+  if (timestampLike?.toDate) {
+    return timestampLike.toDate().toISOString();
   }
 
   return new Date().toISOString();

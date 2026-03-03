@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -28,14 +28,26 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Location is used only at city level to improve restaurant nutrition estimates.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Health data is used to optionally sync your weight and steps into your journal.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Health data write access is used only when you enable weight or steps sync.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This app does not use tracking for ads. This permission may be requested by third-party SDK defaults.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Notifications are used for daily meal logging reminders.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

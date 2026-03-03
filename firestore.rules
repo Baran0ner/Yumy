@@ -1,12 +1,25 @@
-rules_version = '2';
+﻿rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
     }
 
-    match /users/{userId}/entries/{entryId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /days/{dateKey} {
+        allow read, write: if isOwner(uid);
+
+        match /entries/{entryId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+
+      match /savedMeals/{mealId} {
+        allow read, write: if isOwner(uid);
+      }
     }
   }
 }
+

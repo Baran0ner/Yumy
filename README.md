@@ -1,84 +1,123 @@
-# Yumy (React Native)
+﻿# Yumy (React Native)
 
-Bu repo, paylasilan `deep-research-report (7).md` planina gore baslatildi.
-Su an temel MVP akisi + Android Firebase Auth (Google) + Firestore senkronizasyonu eklidir.
+Amy-style food journal prototype built with:
 
-## Tamamlananlar
+- React Native + TypeScript
+- React Navigation (RootStack + nested Tabs/Stacks)
+- Firebase Auth + Firestore + Functions + Storage
+- Gemini analysis through Cloud Functions only
+- RevenueCat subscription flow
+- Notifee local reminder scheduling
+- Apple Health / Google Fit sync (weight + steps)
 
-- React Native TypeScript proje iskeleti
-- Meal ekleme, gunluk ozet, gecmis ekrani
-- AsyncStorage ile offline-first meal saklama
-- Edamam hazirligi + fallback nutrition hesaplama
-- Firebase Functions altinda Gemini proxy iskeleti
-- Android icin Firebase Auth + Google Sign-In akisi
-- Firestore tabanli remote kayit ve local/remote birlestirme
-
-## Kurulum
+## Commands
 
 ```bash
 npm install
 npm run start
 npm run android
+npm run ios
+npm run lint
+npm test -- --runInBand
 ```
 
-## Firebase Auth (Android) Gerekenler
+Functions:
 
-1. `android/app/google-services.json` dosyasi mevcut olmali.
-2. Bu dosyadaki package name su an: `com.subsetapp.yummy`.
-3. Firebase Console > Authentication > Sign-in method > Google acik olmali.
-4. Google Web Client ID degeri `src/config/appConfig.ts` icindeki `googleWebClientId` alanina yazilmali.
-
-Not: Web Client ID olmadan `idToken` alinmaz ve Firebase credential login basarisiz olur.
-
-## Firestore Senkron Gerekenler
-
-1. Firebase Console > Firestore Database olusturulmus olmali.
-2. Guvenlik kurallari `firestore.rules` dosyasina gore deploy edilmeli.
-3. Uygulamadaki manuel `Senkronize Et` aksiyonu offline kayitlari Firestore'a yazar.
-4. Uygulama acilisinda Firestore'daki kayitlar locale merge edilir.
-
-## Ortam ve Konfig Alanlari
-
-`.env.example`:
-
-- `DEMO_USER_ID`
-- `EDAMAM_APP_ID`
-- `EDAMAM_APP_KEY`
-- `GEMINI_FUNCTION_URL`
-- `GOOGLE_WEB_CLIENT_ID`
-
-Su an uygulama config degerleri `src/config/appConfig.ts` icinde tutuluyor.
-
-## Mimari
-
-- `src/context/AuthContext.tsx`: Firebase auth state + Google sign-in/sign-out
-- `src/context/MealContext.tsx`: meal state, load/add/sync
-- `src/services/mealRepository.ts`: local + remote meal orchestrasyonu
-- `src/services/localMealStore.ts`: AsyncStorage
-- `src/services/remoteMealStore.ts`: Firestore baglantisi icin interface
-- `src/services/firebaseRemoteMealStore.ts`: Firestore implementasyonu
-
-## Dizinler
-
-```text
-.
-|- App.tsx
-|- src/
-|  |- components/
-|  |- config/
-|  |- context/
-|  |- navigation/
-|  |- screens/
-|  |- services/
-|  |- types/
-|  |- utils/
-|- functions/
-|  |- src/index.ts
-|- firestore.rules
+```bash
+cd functions
+npm install
+npm run build
 ```
 
-## Sonraki Adimlar
+## Runtime Config
 
-1. iOS Firebase Auth icin `GoogleService-Info.plist` ve pod kurulumlari
-2. Kamera + image upload + Gemini/ML analiz akisi
-3. Push notification, subscription, health integrasyonlari
+Set these values in `src/config/appConfig.ts`:
+
+- `googleWebClientId`
+- `revenueCatAppleApiKey`
+- `revenueCatGoogleApiKey`
+- `revenueCatEntitlementId`
+
+`.env.example` includes the same key names for reference.
+
+## RevenueCat Setup
+
+1. Create products in App Store Connect / Google Play Console.
+2. Add both stores in RevenueCat.
+3. Create an entitlement (default in app is `premium`).
+4. Create an Offering with Monthly and Yearly packages.
+5. Put RevenueCat public SDK keys into `appConfig.ts`.
+6. Run the app and verify:
+   - Paywall loads dynamic price strings from current offering.
+   - Start trial/purchase updates `users/{uid}.subscription`.
+   - Restore purchases updates status.
+
+## Notifee Reminder Setup
+
+Implemented with trigger notifications (`RepeatFrequency.DAILY`) in `src/services/reminderService.ts`.
+
+- Frequency: 1..5
+- Time window: start/end
+- Existing reminder triggers are replaced when rescheduling.
+- Requires notification permission on first scheduling.
+
+Android permissions already added in `AndroidManifest.xml`:
+
+- `POST_NOTIFICATIONS`
+- `ACTIVITY_RECOGNITION`
+
+## Health Sync Setup
+
+Implemented in `src/services/healthService.ts`.
+
+- iOS: `react-native-health` (Apple HealthKit)
+- Android: `react-native-google-fit` (Google Fit)
+
+### iOS
+
+Added:
+
+- `NSHealthShareUsageDescription`
+- `NSHealthUpdateUsageDescription`
+- `NSUserNotificationUsageDescription`
+- `YumyScaffold.entitlements` with:
+  - `com.apple.developer.healthkit`
+  - `aps-environment`
+
+Also set `CODE_SIGN_ENTITLEMENTS` in project build settings.
+
+After pulling changes, run in `ios/`:
+
+```bash
+pod install
+```
+
+### Android
+
+Google Fit scopes are requested at runtime through `react-native-google-fit`.
+
+## Firebase Functions
+
+`functions/src/index.ts` exposes:
+
+- `analyzeMealText`
+- `analyzeMealPhoto`
+- `recomputeDayTotals`
+
+Gemini key is server-side only (`GEMINI_API_KEY` env in Functions runtime).
+
+## Current Flow Coverage
+
+- Onboarding + sign in
+- RevenueCat paywall + restore
+- Today list with `Thinking...` processing state
+- Add entry text/photo
+- Entry detail/edit/saved meals
+- History/day detail
+- Goals + macro plan + streaks/badges
+- Settings (bias/reminders/units/location/health/account/privacy/support)
+
+## Notes
+
+- Account deletion supports provider re-auth (Apple/Google) and best-effort Firestore/Storage cleanup.
+- This repo may contain unrelated local changes in Android build files from prior setup; current app logic compiles and tests pass.
